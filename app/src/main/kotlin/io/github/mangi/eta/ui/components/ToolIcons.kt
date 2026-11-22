@@ -105,7 +105,7 @@ internal fun iconForTool(toolId: String): ImageVector = when (toolId) {
         Icons.Rounded.Alarm
     "get_flashlight", "set_flashlight" -> Icons.Rounded.FlashlightOn
     "get_display_state" -> Icons.Rounded.BrightnessMedium
-    "get_sound_state" -> Icons.Rounded.VolumeDown
+    "get_sound_state" -> Icons.AutoMirrored.Rounded.VolumeDown
     "set_do_not_disturb" -> Icons.Rounded.DoNotDisturbOn
     "device_status", "set_device_state", "get_device_environment" ->
         Icons.Rounded.Smartphone

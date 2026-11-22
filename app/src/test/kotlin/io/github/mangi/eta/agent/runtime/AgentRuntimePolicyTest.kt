@@ -23,7 +23,6 @@ class AgentRuntimePolicyTest {
                 browserTools = false,
                 autoCompaction = false,
                 subagentTools = false,
-                virtualDisplay = false,
             ),
             AgentRuntimePolicy.permissions(null),
         )
@@ -41,7 +40,6 @@ class AgentRuntimePolicyTest {
                 deviceSensitiveReadTools = true,
                 deviceSensitiveActionTools = true,
                 subagentTools = true,
-                virtualDisplay = true,
             ),
             AgentRuntimePolicy.permissions(preferences),
         )
@@ -57,7 +55,6 @@ class AgentRuntimePolicyTest {
                 browserTools = false,
                 autoCompaction = false,
                 subagentTools = false,
-                virtualDisplay = false,
             ),
             AgentRuntimePolicy.permissions(preferences),
         )

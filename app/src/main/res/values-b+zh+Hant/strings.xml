@@ -311,7 +311,6 @@
   <string name="ui_after_closing_no_memory_will_be_injected_and_the_mod_db3d23">關閉後不注入記憶，也不允許模型讀寫；已有內容會保留</string>
   <string name="ui_built_in_09ceea">內建</string>
   <string name="ui_built_in_skills_1ceedf">內建</string>
-  <string name="ui_analyze_current_screen_ebf08f">分析目前螢幕</string>
   <string name="ui_delete_3755f5">刪除</string>
   <string name="ui_remove_provider_9f848f">刪除供應商</string>
   <string name="ui_delete_model_cf24da">刪除模型</string>
@@ -344,7 +343,6 @@
   <string name="ui_manually_fill_in_the_display_name_and_model_id_077a7b">手動填寫展示名稱與 Model ID</string>
   <string name="ui_long_press_on_the_gesture_bar_triggers_a_circle_to_s_b80117">長按手勢列啟動圈選搜尋</string>
   <string name="ui_open_current_browser_58358e">開啟目前瀏覽器</string>
-  <string name="ui_open_wechat_6b2c28">打開微信</string>
   <string name="ui_search_provider_74e049">搜尋供應商</string>
   <string name="ui_search_model_df5586">搜尋模型</string>
   <string name="ui_support_anthropic_claude_official_or_compatible_api_de3f80">支援 Anthropic Claude 官方或相容 API</string>
@@ -361,12 +359,10 @@
   <string name="ui_permissions_560165">權限</string>
   <string name="ui_permissions_and_status_35f368">權限與狀態</string>
   <string name="ui_permission_health_3048bb">權限健康</string>
-  <string name="ui_check_memory_pressure_2d9600">查看記憶體壓力</string>
   <string name="ui_core_memory_injection_budget_48b5d5">核心記憶注入預算</string>
   <string name="ui_model_provider_e8c7f5">模型供應商</string>
   <string name="ui_model_management_183414">模型管理</string>
   <string name="ui_test_connection_10b7d8">測試連線</string>
-  <string name="ui_browse_the_web_da7afb">瀏覽網頁</string>
   <string name="ui_add_custom_model_a5ddc0">新增自訂模型</string>
   <string name="ui_add_attachment_dba9e8">新增附件</string>
   <string name="ui_clear_all_memory_a43bd3">清空全部記憶？</string>
@@ -1055,10 +1051,6 @@
   <string name="attachment_folder">資料夾</string>
   <string name="attachment_enter_path">輸入路徑</string>
   <string name="attachment_add">新增</string>
-  <string name="suggestion_analyze_screen_prompt">擷取螢幕畫面並描述目前內容</string>
-  <string name="suggestion_open_wechat_prompt">幫我開啟微信</string>
-  <string name="suggestion_browse_web_prompt">開啟 Agent 瀏覽器，搜尋並摘要今天的重要科技新聞</string>
-  <string name="suggestion_memory_pressure_prompt">讀取 /proc/meminfo 與 /proc/pressure/，重點分析 PSI（Pressure Stall Information）指標，摘要目前的記憶體壓力與系統狀態</string>
   <string name="route_mcp_servers">MCP 伺服器</string>
   <string name="route_mcp_server_detail">MCP 伺服器</string>
   <string name="mcp_add_server">新增伺服器</string>

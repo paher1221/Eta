@@ -328,7 +328,6 @@
   <string name="ui_after_closing_no_memory_will_be_injected_and_the_mod_db3d23">After closing, no memory will be injected, and the model will not be allowed to read or write; existing content will be retained.</string>
   <string name="ui_built_in_09ceea">built-in</string>
   <string name="ui_built_in_skills_1ceedf">Built-in</string>
-  <string name="ui_analyze_current_screen_ebf08f">Analyze current screen</string>
   <string name="ui_delete_3755f5">delete</string>
   <string name="ui_remove_provider_9f848f">Remove provider</string>
   <string name="ui_delete_model_cf24da">Delete model</string>
@@ -361,7 +360,6 @@
   <string name="ui_manually_fill_in_the_display_name_and_model_id_077a7b">Manually fill in the display name and Model ID</string>
   <string name="ui_long_press_on_the_gesture_bar_triggers_a_circle_to_s_b80117">Touch and hold the gesture bar to start Circle to Search</string>
   <string name="ui_open_current_browser_58358e">Open current browser</string>
-  <string name="ui_open_wechat_6b2c28">Open WeChat</string>
   <string name="ui_search_provider_74e049">Search provider</string>
   <string name="ui_search_model_df5586">Search model</string>
   <string name="ui_support_anthropic_claude_official_or_compatible_api_de3f80">Support Anthropic Claude official or compatible API</string>
@@ -378,12 +376,10 @@
   <string name="ui_permissions_560165">Permissions</string>
   <string name="ui_permissions_and_status_35f368">Permissions and status</string>
   <string name="ui_permission_health_3048bb">Permissions</string>
-  <string name="ui_check_memory_pressure_2d9600">Check memory pressure</string>
   <string name="ui_core_memory_injection_budget_48b5d5">Core memory injection budget</string>
   <string name="ui_model_provider_e8c7f5">Model providers</string>
   <string name="ui_model_management_183414">Model management</string>
   <string name="ui_test_connection_10b7d8">test connection</string>
-  <string name="ui_browse_the_web_da7afb">Browse the web</string>
   <string name="ui_add_custom_model_a5ddc0">Add custom model</string>
   <string name="ui_add_attachment_dba9e8">Add attachment</string>
   <string name="ui_clear_all_memory_a43bd3">Clear all memory?</string>
@@ -1083,10 +1079,6 @@
   <string name="attachment_folder">Folder</string>
   <string name="attachment_enter_path">Enter path</string>
   <string name="attachment_add">Add</string>
-  <string name="suggestion_analyze_screen_prompt">Take a screenshot and describe the current screen</string>
-  <string name="suggestion_open_wechat_prompt">Open WeChat</string>
-  <string name="suggestion_browse_web_prompt">Open Agent Browser, then search for and summarize today’s top technology news</string>
-  <string name="suggestion_memory_pressure_prompt">Read /proc/meminfo and /proc/pressure/, focus on PSI (Pressure Stall Information), and summarize current memory pressure and system status</string>
   <string name="route_mcp_servers">MCP servers</string>
   <string name="route_mcp_server_detail">MCP server</string>
   <string name="mcp_add_server">Add server</string>

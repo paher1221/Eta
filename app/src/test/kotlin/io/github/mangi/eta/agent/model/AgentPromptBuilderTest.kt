@@ -5,8 +5,6 @@ import io.github.mangi.eta.agent.terminal.TerminalExecutionContext
 import io.github.mangi.eta.agent.memory.AgentMemoryContext
 import io.github.mangi.eta.agent.skill.SkillContext
 import io.github.mangi.eta.agent.skill.SkillIndexEntry
-import io.github.mangi.eta.agent.device.RootAccessState
-import io.github.mangi.eta.agent.device.RootAccessStatus
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,25 +14,17 @@ import org.junit.Test
 
 class AgentPromptBuilderTest {
     @Test
-    fun rootPromptOnlyDependsOnGrantSoTransientProbeStatesKeepThePrefixStable() {
-        fun prompt(state: RootAccessState) = AgentPromptBuilder.buildSystemMessages(
+    fun rootPromptFollowsTheGrantFlag() {
+        fun prompt(rootAvailable: Boolean) = AgentPromptBuilder.buildSystemMessages(
             config = modelConfig("", terminalTools = true, browserTools = false),
             skillContext = SkillContext.EMPTY, memoryContext = AgentMemoryContext.DISABLED,
-            rootAvailable = state.isGranted,
+            rootAvailable = rootAvailable,
         ).toString()
-        val ungranted = listOf(
-            RootAccessState(isChecking = true),
-            RootAccessState(RootAccessStatus.UNKNOWN),
-            RootAccessState(RootAccessStatus.TIMED_OUT),
-            RootAccessState(RootAccessStatus.DENIED),
-            RootAccessState(RootAccessStatus.UNAVAILABLE),
-        ).map(::prompt)
-        assertEquals(1, ungranted.distinct().size)
-        val granted = prompt(RootAccessState(RootAccessStatus.GRANTED, suPresent = true))
-        assertEquals(granted, prompt(RootAccessState(RootAccessStatus.GRANTED, suPresent = true, isChecking = true)))
+        val ungranted = prompt(false)
+        val granted = prompt(true)
         assertTrue(granted.contains("Root 授权已确认"))
-        assertTrue(ungranted.first().contains("这不代表设备不支持 Root"))
-        for (contents in ungranted + granted) {
+        assertTrue(ungranted.contains("这不代表设备不支持 Root"))
+        for (contents in listOf(ungranted, granted)) {
             assertTrue(contents.contains("identity=user 是显式选择"))
             assertTrue(contents.contains("terminal(action=check_root)"))
         }

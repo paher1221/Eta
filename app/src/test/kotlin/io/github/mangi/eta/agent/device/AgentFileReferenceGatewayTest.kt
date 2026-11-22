@@ -7,7 +7,6 @@ import io.github.mangi.eta.core.AgentLogger
 import java.io.ByteArrayInputStream
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,11 +23,9 @@ class AgentFileReferenceGatewayTest {
     val temporaryFolder = TemporaryFolder()
 
     @Test
-    fun appReadableFilesAndDirectoriesNeverAskForRoot() {
+    fun appReadableFilesAndDirectoriesResolveWithoutExtraPermissions() {
         val file = temporaryFolder.newFile("report.txt").apply { writeText("ordinary file") }
-        val gateway = AgentFileReferenceGateway(rootAvailable = { false }) {
-            error("普通路径不应执行 Root 校验")
-        }
+        val gateway = AgentFileReferenceGateway()
         val result = gateway.resolveAbsolutePath(file.absolutePath, AgentFileReferenceKind.File)
             as AgentFileReferenceGateway.Resolution.Success
         assertEquals(file.canonicalPath, result.reference.absolutePath)
@@ -48,7 +45,7 @@ class AgentFileReferenceGatewayTest {
         val context = RuntimeEnvironment.getApplication()
         val uri = Uri.parse("content://cloud.example/document/report")
         shadowOf(context.contentResolver).registerInputStream(uri, ByteArrayInputStream("授权内容".toByteArray()))
-        val gateway = AgentFileReferenceGateway(context, NoOpLogger, rootAvailable = { false })
+        val gateway = AgentFileReferenceGateway(context, NoOpLogger)
 
         val result = gateway.resolveDocumentUri(uri, AgentFileReferenceKind.File)
             as AgentFileReferenceGateway.Resolution.Success
@@ -112,119 +109,58 @@ class AgentFileReferenceGatewayTest {
 
     @Test
     fun resolveAbsolutePath_returnsCanonicalFileAndDirectory() {
-        val fileGateway = AgentFileReferenceGateway(rootAvailable = { true }) {
-            success("file\n/storage/emulated/0/Download/report.txt")
-        }
-        val directoryGateway = AgentFileReferenceGateway(rootAvailable = { true }) {
-            success("directory\n/data/local/tmp/project")
-        }
+        val gateway = AgentFileReferenceGateway()
+        val file = temporaryFolder.newFile("report.txt")
+        val directory = temporaryFolder.newFolder("project")
 
         assertEquals(
             AgentFileReferenceGateway.Resolution.Success(
                 AgentFileReference(
                     displayName = "report.txt",
-                    absolutePath = "/storage/emulated/0/Download/report.txt",
+                    absolutePath = file.canonicalPath,
                     kind = AgentFileReferenceKind.File,
                 )
             ),
-            fileGateway.resolveAbsolutePath(
-                "/storage/emulated/0/Download/report.txt",
-                AgentFileReferenceKind.File,
-            ),
+            gateway.resolveAbsolutePath(file.absolutePath, AgentFileReferenceKind.File),
         )
         assertEquals(
             AgentFileReferenceGateway.Resolution.Success(
                 AgentFileReference(
                     displayName = "project",
-                    absolutePath = "/data/local/tmp/project",
+                    absolutePath = directory.canonicalPath,
                     kind = AgentFileReferenceKind.Directory,
                 )
             ),
-            directoryGateway.resolveAbsolutePath("/data/local/tmp/project"),
+            gateway.resolveAbsolutePath(directory.absolutePath),
         )
     }
 
     @Test
-    fun resolveAbsolutePath_mapsRootAndFilesystemFailures() {
-        assertFailure(
-            expected = AgentFileReferenceGateway.Error.RootUnavailable,
-            result = AgentFileReferenceGateway(rootAvailable = { true }) {
-                BoundedRootCommandExecutor.Result.failed("ROOT_UNAVAILABLE")
-            }.resolveAbsolutePath("/data/local/tmp/file"),
-        )
-        assertFailure(
-            expected = AgentFileReferenceGateway.Error.RootUnavailable,
-            result = AgentFileReferenceGateway(rootAvailable = { true }) { failed(exitCode = 20) }
-                .resolveAbsolutePath("/data/local/tmp/file"),
-        )
+    fun resolveAbsolutePath_mapsFilesystemFailures() {
+        val gateway = AgentFileReferenceGateway()
         assertFailure(
             expected = AgentFileReferenceGateway.Error.UnsupportedFileType,
-            result = AgentFileReferenceGateway(rootAvailable = { true }) { failed(exitCode = 23) }
-                .resolveAbsolutePath("/data/local/tmp/socket"),
+            result = gateway.resolveAbsolutePath(createSpecialFile().absolutePath),
         )
         assertFailure(
             expected = AgentFileReferenceGateway.Error.PathNotFound,
-            result = AgentFileReferenceGateway(rootAvailable = { true }) { failed(exitCode = 21) }
-                .resolveAbsolutePath("/data/local/tmp/missing"),
-        )
-        assertFailure(
-            expected = AgentFileReferenceGateway.Error.ValidationTimedOut,
-            result = AgentFileReferenceGateway(rootAvailable = { true }) {
-                failed(exitCode = -2, timedOut = true)
-            }.resolveAbsolutePath("/data/local/tmp/file"),
-        )
-        assertEquals(
-            AgentFileReferenceGateway.Resolution.Success(
-                AgentFileReference(
-                    displayName = "secret",
-                    absolutePath = "/data/adb/secret",
-                    kind = AgentFileReferenceKind.File,
-                )
-            ),
-            AgentFileReferenceGateway(rootAvailable = { true }) {
-                success("file\n/data/adb/secret")
-            }.resolveAbsolutePath("/data/adb/secret"),
-        )
-    }
-
-    @Test
-    fun resolveAbsolutePath_rejectsInvalidInputAndTypeMismatch() {
-        var executed = false
-        val invalidGateway = AgentFileReferenceGateway(rootAvailable = { true }) {
-            executed = true
-            success("file\n/data/local/tmp/file")
-        }
-        assertFailure(
-            expected = AgentFileReferenceGateway.Error.InvalidPath,
-            result = invalidGateway.resolveAbsolutePath("relative/path"),
+            result = gateway.resolveAbsolutePath(File(temporaryFolder.root, "missing").path),
         )
         assertFailure(
             expected = AgentFileReferenceGateway.Error.InvalidPath,
-            result = invalidGateway.resolveAbsolutePath("/data/local/tmp/bad\npath"),
+            result = gateway.resolveAbsolutePath("relative/path"),
         )
-        assertFalse(executed)
-
+        assertFailure(
+            expected = AgentFileReferenceGateway.Error.InvalidPath,
+            result = gateway.resolveAbsolutePath("/data/local/tmp/bad\npath"),
+        )
         assertFailure(
             expected = AgentFileReferenceGateway.Error.TypeMismatch,
-            result = AgentFileReferenceGateway(rootAvailable = { true }) {
-                success("directory\n/data/local/tmp/project")
-            }.resolveAbsolutePath("/data/local/tmp/project", AgentFileReferenceKind.File),
+            result = gateway.resolveAbsolutePath(
+                temporaryFolder.newFile("typed.txt").absolutePath,
+                AgentFileReferenceKind.Directory,
+            ),
         )
-    }
-
-    @Test
-    fun resolveAbsolutePath_shellQuotesUntrustedPath() {
-        var command = ""
-        val path = "/data/local/tmp/a'\$(touch pwned)"
-        val gateway = AgentFileReferenceGateway(rootAvailable = { true }) { captured ->
-            command = captured
-            success("file\n$path")
-        }
-
-        val result = gateway.resolveAbsolutePath(path)
-
-        assertTrue(result is AgentFileReferenceGateway.Resolution.Success)
-        assertTrue(command.contains("'/data/local/tmp/a'\\''\$(touch pwned)'"))
     }
 
     @Test
@@ -232,14 +168,11 @@ class AgentFileReferenceGatewayTest {
         val uri = Uri.parse(
             "content://com.android.providers.media.documents/document/image%3A24708"
         )
+        val localPath = temporaryFolder.newFile("example.jpg").apply { writeText("image") }
         val gateway = AgentFileReferenceGateway(
-            rootAvailable = { true },
             resolveDocumentPath = { selectedUri ->
                 assertEquals(uri, selectedUri)
-                "/storage/emulated/0/Pictures/Screenshots/example.jpg"
-            },
-            executeRootCommand = {
-                success("file\n/storage/emulated/0/Pictures/Screenshots/example.jpg")
+                localPath.absolutePath
             },
         )
 
@@ -247,7 +180,7 @@ class AgentFileReferenceGatewayTest {
             AgentFileReferenceGateway.Resolution.Success(
                 AgentFileReference(
                     displayName = "example.jpg",
-                    absolutePath = "/storage/emulated/0/Pictures/Screenshots/example.jpg",
+                    absolutePath = localPath.canonicalPath,
                     kind = AgentFileReferenceKind.File,
                 )
             ),
@@ -257,11 +190,7 @@ class AgentFileReferenceGatewayTest {
 
     @Test
     fun resolveDocumentUri_rejectsProviderWithoutLocalPath() {
-        val gateway = AgentFileReferenceGateway(
-            rootAvailable = { true },
-            resolveDocumentPath = { null },
-            executeRootCommand = { error("不应执行 Root 校验") },
-        )
+        val gateway = AgentFileReferenceGateway(resolveDocumentPath = { null })
 
         assertFailure(
             expected = AgentFileReferenceGateway.Error.UnsupportedDocumentProvider,
@@ -272,31 +201,18 @@ class AgentFileReferenceGatewayTest {
         )
     }
 
+    private fun createSpecialFile(): File {
+        val link = File(temporaryFolder.root, "device-link")
+        java.nio.file.Files.createSymbolicLink(link.toPath(), java.nio.file.Path.of("/dev/null"))
+        return link
+    }
+
     private fun assertFailure(
         expected: AgentFileReferenceGateway.Error,
         result: AgentFileReferenceGateway.Resolution,
     ) {
         assertEquals(expected, (result as AgentFileReferenceGateway.Resolution.Failure).error)
     }
-
-    private fun success(stdout: String) = BoundedRootCommandExecutor.Result(
-        exitCode = 0,
-        stdout = stdout,
-        stderr = "",
-        timedOut = false,
-        truncated = false,
-    )
-
-    private fun failed(
-        exitCode: Int,
-        timedOut: Boolean = false,
-    ) = BoundedRootCommandExecutor.Result(
-        exitCode = exitCode,
-        stdout = "",
-        stderr = "",
-        timedOut = timedOut,
-        truncated = false,
-    )
 
     private object NoOpLogger : AgentLogger {
         override fun debug(message: () -> String) = Unit

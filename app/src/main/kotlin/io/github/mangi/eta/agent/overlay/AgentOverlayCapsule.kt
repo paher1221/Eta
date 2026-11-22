@@ -8,7 +8,6 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.animateFloat
@@ -32,7 +31,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -74,7 +72,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.virtualdisplay.VirtualDisplaySnapshot
 import io.github.mangi.eta.data.model.AppearanceUiStyle
 import io.github.mangi.eta.ui.app.LocalUiStyle
 import io.github.mangi.eta.ui.components.coui.couiButtonFeedback
@@ -90,8 +87,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 顶部状态胶囊：收起时只显示一句当前步骤（后台虚拟屏激活时右侧镶嵌 18×32.dp 实时微缩镜），
- * 点击展开补充、暂停、停止及画廊装裱式虚拟屏交互视窗。
+ * 顶部状态胶囊：收起时只显示一句当前步骤，点击展开补充、暂停、停止操作。
  * 位置固定在状态栏下方居中，不随 Agent 的点击位置移动，避免和目标控件重叠。
  * 状态文字只在语义变化时以上滑淡入切换，流式正文不进入胶囊。
  */
@@ -107,12 +103,6 @@ internal fun AgentOverlayCapsule(
     onStop: () -> Unit,
     onSupplementModeChange: (Boolean) -> Unit,
     onSupplement: (String) -> Unit,
-    virtualDisplay: VirtualDisplaySnapshot = VirtualDisplaySnapshot.Inactive,
-    onTakeOverVirtualDisplay: () -> Unit = {},
-    onResumeVirtualDisplay: () -> Unit = {},
-    onFullscreenVirtualDisplay: () -> Unit = {},
-    onTapVirtualCanvas: (Float, Float, Boolean) -> Unit = { _, _, _ -> },
-    onSwipeVirtualCanvas: (Float, Float, Float, Float, Int) -> Unit = { _, _, _, _, _ -> },
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -164,23 +154,11 @@ internal fun AgentOverlayCapsule(
         finishedListener = { value -> if (value == 0f) onCollapsedSettled() },
     )
 
-    val targetCapsuleWidth by animateDpAsState(
-        targetValue = when {
-            virtualDisplay.active && expanded -> StageCapsuleWidth
-            virtualDisplay.active -> MicroLensCapsuleWidth
-            else -> DefaultCapsuleWidth
-        },
-        animationSpec = tween(durationMillis = 260, easing = SmoothOutEasing),
-        label = "capsule_width",
-    )
-    val targetCapsuleCorner by animateDpAsState(
-        targetValue = if (virtualDisplay.active && expanded) StageOuterCorner else CapsuleCorner,
-        animationSpec = tween(durationMillis = 260, easing = SmoothOutEasing),
-        label = "capsule_corner",
-    )
+    val targetCapsuleWidth = 248.dp
+    val targetCapsuleCorner = CapsuleCorner
 
     AnimatedVisibility(
-        visible = visible && !virtualDisplay.materializingToMain,
+        visible = visible,
         enter = slideInVertically(tween(durationMillis = 260, easing = SmoothOutEasing)) { -it } +
             fadeIn(tween(180)),
         exit = slideOutVertically(tween(durationMillis = 200, easing = FastOutSlowInEasing)) { -it } +
@@ -243,7 +221,7 @@ internal fun AgentOverlayCapsule(
                         .semantics { contentDescription = expandDescription }
                         .padding(
                             start = 13.dp,
-                            end = if (virtualDisplay.active && !expanded) 10.dp else 16.dp,
+                            end = 16.dp,
                             top = 9.5.dp,
                             bottom = 9.5.dp,
                         ),
@@ -272,19 +250,6 @@ internal fun AgentOverlayCapsule(
                         }
                         ThoughtLine(thought = state.thought.takeIf { state.phase == AgentOverlayPhase.RUNNING }.orEmpty())
                     }
-                    AnimatedVisibility(
-                        visible = virtualDisplay.active && !expanded,
-                        enter = fadeIn(tween(180)),
-                        exit = fadeOut(tween(120)),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Spacer(Modifier.width(8.dp))
-                            VirtualDisplayMicroLens(
-                                snapshot = virtualDisplay,
-                                accent = accent,
-                            )
-                        }
-                    }
                 }
 
                 AnimatedVisibility(
@@ -299,19 +264,6 @@ internal fun AgentOverlayCapsule(
                             .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                             .graphicsLayer { translationY = (1f - expansion) * -6.dp.toPx() },
                     ) {
-                        if (virtualDisplay.active && !supplementMode) {
-                            VirtualDisplayStageSection(
-                                snapshot = virtualDisplay,
-                                accent = accent,
-                                isPaused = state.phase == AgentOverlayPhase.PAUSED,
-                                onTakeOver = onTakeOverVirtualDisplay,
-                                onResumeAuto = onResumeVirtualDisplay,
-                                onFullscreen = onFullscreenVirtualDisplay,
-                                onTapCanvas = onTapVirtualCanvas,
-                                onSwipeCanvas = onSwipeVirtualCanvas,
-                            )
-                            Spacer(Modifier.height(10.dp))
-                        }
                         if (supplementMode) {
                             OverlaySupplementInput(
                                 state = supplementText,
@@ -474,5 +426,4 @@ private fun CapsuleAction(icon: ImageVector, label: String, tint: Color, onClick
 }
 
 private val CapsuleCorner = 22.dp
-private val StageOuterCorner = 28.dp
 private val SmoothOutEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)

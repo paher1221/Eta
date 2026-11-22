@@ -44,11 +44,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.device.BoundedRootCommandExecutor
 import io.github.mangi.eta.agent.device.DeviceLocationProvider
-import io.github.mangi.eta.agent.device.RootAccess
 import io.github.mangi.eta.agent.runtime.AgentRuntimeService
 import io.github.mangi.eta.agent.runtime.AgentRuntimeWire
 import io.github.mangi.eta.ui.screens.scheduled.ScheduledTaskDetailScreen
@@ -70,7 +67,6 @@ import io.github.mangi.eta.ui.components.coui.CouiNoticeDialog
 import io.github.mangi.eta.ui.model.AgentHomeAction
 import io.github.mangi.eta.ui.model.AgentMemoryAction
 import io.github.mangi.eta.ui.model.AgentSkillsAction
-import io.github.mangi.eta.ui.model.AgentSystemEnhanceAction
 import io.github.mangi.eta.ui.model.AgentToolsAction
 import io.github.mangi.eta.ui.model.ConversationSummaryUi
 import io.github.mangi.eta.ui.model.LOCAL_NETWORK_PERMISSION_ITEM_ID
@@ -91,7 +87,6 @@ import io.github.mangi.eta.ui.screens.characters.CharacterEditorScreen
 import io.github.mangi.eta.ui.screens.characters.CharacterLibraryScreen
 import io.github.mangi.eta.ui.screens.characters.CharacterMemoryScreen
 import io.github.mangi.eta.ui.screens.characters.CharacterPersonaScreen
-import io.github.mangi.eta.ui.screens.enhance.SystemEnhanceScreen
 import io.github.mangi.eta.ui.screens.home.AgentHomeScreen
 import io.github.mangi.eta.ui.screens.mcp.McpServerDetailScreen
 import io.github.mangi.eta.ui.screens.mcp.McpServersScreen
@@ -194,7 +189,6 @@ fun AgentAppRoot(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                RootAccess.refresh(context)
                 permissionHealth.refreshPermissionHealth()
                 agentState.refreshRuntimeResults()
             }
@@ -243,7 +237,7 @@ fun AgentAppRoot(
     val focusManager = LocalFocusManager.current
 
     LaunchedEffect(Unit) {
-        RuntimeConfigRepository.ensureDefaults(EtaApp.serviceInstance)
+        RuntimeConfigRepository.ensureDefaults()
     }
 
     LaunchedEffect(requestedConversationId) {
@@ -472,7 +466,6 @@ fun AgentAppRoot(
                                         AgentHomeAction.OpenTools -> pushRoute(AppRoute.Tools)
                                         AgentHomeAction.OpenSkills -> pushRoute(AppRoute.Skills)
                                         AgentHomeAction.OpenPermissions -> pushRoute(AppRoute.Permissions)
-                                        AgentHomeAction.OpenSystemEnhance -> pushRoute(AppRoute.SystemEnhance)
                                         AgentHomeAction.OpenSettings -> pushRoute(AppRoute.Settings)
                                         AgentHomeAction.OpenBrowser -> openConversationBrowser()
                                         AgentHomeAction.ExpandRunTrace -> Unit
@@ -512,7 +505,6 @@ fun AgentAppRoot(
                                     AgentToolsAction.OpenBrowser -> openConversationBrowser()
                                     AgentToolsAction.OpenWebToolsSettings -> pushRoute(AppRoute.WebToolsSettings)
                                     AgentToolsAction.OpenImageGenSettings -> pushRoute(AppRoute.ImageGenSettings)
-                                    AgentToolsAction.OpenEnhancements -> pushRoute(AppRoute.SystemEnhance)
                                     AgentToolsAction.OpenPermissions -> pushRoute(AppRoute.Permissions)
                                 }
                             },
@@ -631,20 +623,8 @@ fun AgentAppRoot(
                                                 }
                                             }
                                             "background" -> {
-                                                if (RootAccess.isGranted && Build.MANUFACTURER.lowercase() in setOf("oppo", "realme", "oneplus")) {
-                                                    uiScope.launch(Dispatchers.IO) {
-                                                        BoundedRootCommandExecutor(AndroidAgentLogger).use {
-                                                            it.execute(
-                                                                "am start --user current -n " +
-                                                                    "com.oplus.battery/com.oplus.powermanager.fuelgaue.PowerControlActivity " +
-                                                                    "--es title Eta --es pkgName io.github.mangi.eta --es drainType APP",
-                                                            )
-                                                        }
-                                                    }
-                                                } else {
-                                                    runCatching {
-                                                        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                                                    }
+                                                runCatching {
+                                                    context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                                                 }
                                             }
                                             "app_list" -> {
@@ -703,20 +683,8 @@ fun AgentAppRoot(
                                                 context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                                                     .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
                                             }
-                                            "root" -> pushRoute(AppRoute.SystemEnhance)
                                         }
                                     }
-                                }
-                            },
-                        )
-                    }
-                    entry<AppRoute.SystemEnhance>(swipeDismiss = activeSwipeDismiss) {
-                        SystemEnhanceScreen(
-                            onAction = { action ->
-                                when (action) {
-                                    AgentSystemEnhanceAction.NavigateBack -> popRoute()
-                                    AgentSystemEnhanceAction.RequestRoot -> { RootAccess.request(context) }
-                                    AgentSystemEnhanceAction.RefreshRoot -> { RootAccess.refresh(context) }
                                 }
                             },
                         )

@@ -3,7 +3,7 @@ package io.github.mangi.eta.agent.tool
 import android.content.Context
 import android.content.ClipData
 import android.content.ClipboardManager
-import io.github.mangi.eta.agent.device.RootShellDeviceController
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController
 import io.github.mangi.eta.agent.model.AgentModelClient
 import io.github.mangi.eta.agent.model.AgentScreenObservationContract
 import io.github.mangi.eta.agent.runtime.AgentRunController
@@ -109,19 +109,13 @@ class AgentLocalToolsPermissionTest {
     }
 
     @Test
-    fun revokedRootRejectsOldPrivilegedCallsBeforeAnyOperation() {
-        val root = AtomicBoolean(true)
+    fun rootIdentityCallsAreRejectedBeforeAnyOperation() {
         val tools = tools(
-            rootAvailable = root::get,
             terminalEnabled = { true },
         )
-        root.set(false)
         listOf(
-            "search_bills" to "{}",
-            "set_setting" to "{}",
             "terminal" to "{\"action\":\"open\",\"identity\":\"root\"}",
             "edit_file" to "{\"path\":\"x\",\"identity\":\"root\",\"old_text\":\"a\",\"new_text\":\"b\"}",
-            "press_key" to "{\"button\":\"PASTE\"}",
         ).forEach { (name, args) ->
             val result = tools.execute(AgentModelClient.ToolCall("old-$name", name, args))
             assertEquals("ROOT_REQUIRED", JSONObject(result.content).getString("code"))
@@ -132,11 +126,11 @@ class AgentLocalToolsPermissionTest {
     @Test
     fun personalContextRechecksSensitiveReadPermissionAndRedactsDeniedCalls() {
         val enabled = AtomicBoolean(true)
-        val tools = tools(rootAvailable = { true }, sensitiveReadEnabled = enabled::get,
+        val tools = tools(sensitiveReadEnabled = enabled::get,
             beforeToolExecution = { error("已关闭个人信息读取时不能进入数据源执行阶段") })
         tools.use {
             enabled.set(false)
-            val result = it.execute(AgentModelClient.ToolCall("personal", "search_bills", "{}"))
+            val result = it.execute(AgentModelClient.ToolCall("personal", "recent_notifications", "{}"))
             assertEquals("DEVICE_SENSITIVE_READ_TOOLS_DISABLED", JSONObject(result.content).getString("code"))
             assertTrue(result.sensitive)
         }
@@ -437,7 +431,6 @@ class AgentLocalToolsPermissionTest {
             context = RuntimeEnvironment.getApplication() as Context,
             logger = NoOpLogger,
             browserRunId = "test-run",
-            rootAvailable = { true },
             deviceSensitiveReadToolsEnabled = { true },
             isToolEnabled = { it != "read_sms_code" },
         )
@@ -460,10 +453,9 @@ class AgentLocalToolsPermissionTest {
         browserEnabled: () -> Boolean = { false },
         memoryEnabled: () -> Boolean = { false },
         memoryWritable: Boolean = true,
-        rootAvailable: () -> Boolean = { false },
         sensitiveReadEnabled: () -> Boolean = { false },
         screenObservationProvider: (
-            (AgentScreenObservationContract.Options) -> RootShellDeviceController.Observation
+            (AgentScreenObservationContract.Options) -> AccessibilityDeviceController.Observation
         )? = null,
         beforeToolExecution: (String) -> ToolExecutionDecision = {
             ToolExecutionDecision.Allow
@@ -478,7 +470,6 @@ class AgentLocalToolsPermissionTest {
             browserToolsEnabled = browserEnabled,
             memoryToolsEnabled = memoryEnabled,
             memoryWritable = memoryWritable,
-            rootAvailable = rootAvailable,
             deviceSensitiveReadToolsEnabled = sensitiveReadEnabled,
             screenObservationProvider = screenObservationProvider,
             beforeToolExecution = beforeToolExecution,
@@ -489,10 +480,10 @@ class AgentLocalToolsPermissionTest {
         observationId: String,
         screenshotRequested: Boolean,
         image: AgentModelClient.ModelImage? = null,
-    ): RootShellDeviceController.Observation {
-        val elementObservation = RootShellDeviceController.ElementObservation(
+    ): AccessibilityDeviceController.Observation {
+        val elementObservation = AccessibilityDeviceController.ElementObservation(
             id = observationId,
-            source = RootShellDeviceController.ElementSource.ACCESSIBILITY,
+            source = AccessibilityDeviceController.ElementSource.ACCESSIBILITY,
             packageName = "example.app",
             windowId = 1,
             nodes = emptyList(),
@@ -510,12 +501,12 @@ class AgentLocalToolsPermissionTest {
                     .put("attached", image != null),
             )
             .toString()
-        return RootShellDeviceController.Observation(
+        return AccessibilityDeviceController.Observation(
             content = content,
             image = image,
             elementObservation = elementObservation,
             coordinateSpace = image?.let {
-                RootShellDeviceController.CoordinateSpace(
+                AccessibilityDeviceController.CoordinateSpace(
                     screenWidth = 1080,
                     screenHeight = 2400,
                     screenshotWidth = checkNotNull(it.width),

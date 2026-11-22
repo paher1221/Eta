@@ -656,7 +656,6 @@ private fun titleForRoute(route: AppRoute?): String = when (route) {
     is AppRoute.CharacterPersona -> stringResource(R.string.ui_misc_route_character_persona)
     is AppRoute.CharacterMemory -> stringResource(R.string.ui_misc_route_character_memory)
     is AppRoute.Permissions -> stringResource(R.string.route_permissions)
-    is AppRoute.SystemEnhance -> stringResource(R.string.route_system_enhancements)
     is AppRoute.Settings -> stringResource(R.string.route_settings)
     is AppRoute.SpeechSettings -> stringResource(R.string.speech_settings_title)
     is AppRoute.SpeechRecognition -> stringResource(R.string.speech_recognition_title)

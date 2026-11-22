@@ -30,7 +30,6 @@ sealed interface AgentHomeAction {
     data object OpenTools : AgentHomeAction
     data object OpenSkills : AgentHomeAction
     data object OpenPermissions : AgentHomeAction
-    data object OpenSystemEnhance : AgentHomeAction
     data object OpenSettings : AgentHomeAction
     data object OpenBrowser : AgentHomeAction
     data object ExpandRunTrace : AgentHomeAction
@@ -42,7 +41,6 @@ sealed interface PermissionHealthAction {
 }
 
 sealed interface AgentToolsAction {
-    data object OpenEnhancements : AgentToolsAction
     data object OpenPermissions : AgentToolsAction
     data object NavigateBack : AgentToolsAction
     data object OpenBrowser : AgentToolsAction
@@ -59,12 +57,6 @@ sealed interface AgentSkillsAction {
     data class ToggleSkill(val skillId: String, val enabled: Boolean) : AgentSkillsAction
     data class DeleteSkill(val skillId: String) : AgentSkillsAction
     data class ReinstallBuiltin(val skillId: String) : AgentSkillsAction
-}
-
-sealed interface AgentSystemEnhanceAction {
-    data object NavigateBack : AgentSystemEnhanceAction
-    data object RequestRoot : AgentSystemEnhanceAction
-    data object RefreshRoot : AgentSystemEnhanceAction
 }
 
 sealed interface AgentMemoryAction {

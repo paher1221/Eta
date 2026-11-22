@@ -73,7 +73,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.auth.ProviderAuthException
 import io.github.mangi.eta.data.model.AppearanceUiStyle
@@ -265,7 +264,6 @@ internal fun ProviderModelsTab(
                 }
                 if (ProviderAuthModes.isOAuth(provider.authMode)) {
                     val sync = ModelRepository.syncRemoteCatalog(catalog)
-                    RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
                     message = context.resources.getQuantityString(
                         R.plurals.provider_i18n_synced_remote_models,
                         sync.fetchedCount,
@@ -280,7 +278,6 @@ internal fun ProviderModelsTab(
                 }
                 val sync = ModelRepository.syncRemoteCatalog(catalog, emptySet())
                 if (sync.applied) {
-                    RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
                 }
                 message = if (sync.applied) {
                     context.getString(R.string.provider_models_up_to_date)
@@ -547,7 +544,6 @@ internal fun ProviderModelsTab(
                                 scope.launch {
                                     try {
                                         RuntimeConfigRepository.setSelectedModelId(model.id)
-                                        RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
                                     } catch (cancelled: CancellationException) {
                                         throw cancelled
                                     } catch (failure: ProviderAuthException) {
@@ -620,7 +616,6 @@ internal fun ProviderModelsTab(
                     editorError = null
                     try {
                         val saved = ModelRepository.saveModel(provider.id, updated)
-                        RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
                         editingModel = null
                         message = context.getString(R.string.provider_model_saved, saved.displayName)
                     } catch (cancelled: CancellationException) {
@@ -648,7 +643,6 @@ internal fun ProviderModelsTab(
             isMutatingModel = true
             try {
                 ModelRepository.deleteModel(provider.id, model.id)
-                RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
                 message = context.getString(R.string.provider_model_deleted, model.displayName)
                 modelPendingDelete = null
             } catch (cancelled: CancellationException) {
@@ -677,7 +671,6 @@ internal fun ProviderModelsTab(
             isMutatingModel = true
             try {
                 ModelRepository.deleteModels(provider.id, selectedModelIds)
-                RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
                 message = context.resources.getQuantityString(
                     R.plurals.provider_models_deleted,
                     deletedCount,
@@ -773,7 +766,6 @@ internal fun ProviderModelsTab(
                 try {
                     val sync = ModelRepository.syncRemoteCatalog(pending.catalog, adopted)
                     if (sync.applied) {
-                        RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
                     }
                     message = when {
                         !sync.applied -> context.getString(R.string.page_the_remote_end_did_not_return_a_usable_conversation__781487)

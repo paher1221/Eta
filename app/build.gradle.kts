@@ -106,8 +106,6 @@ android {
             keepDebugSymbols += setOf("**/libproot_exec.so", "**/libproot_loader.so", "**/libeta_pty.so")
         }
         resources {
-            // 合并 Xposed 模块声明，避免 release 裁剪后模块入口失效
-            merges += "META-INF/xposed/*"
             // 仅排除会引发打包冲突的签名/版本元数据，避免误伤 Compose 资源
             excludes += "META-INF/*.kotlin_module"
             excludes += "META-INF/INDEX.LIST"
@@ -156,11 +154,6 @@ dependencies {
     implementation(libs.jsoup)
     implementation(libs.commons.compress)
     implementation(libs.xz)
-    compileOnly(libs.libxposed.api)
-    // UI 侧 RemotePreferences 写入桥：通过 XposedService 将配置提交到 LSPosed 数据库；
-    // Hook 侧用 XposedInterface.getRemotePreferences 读取当前进程持有的配置缓存。
-    implementation(libs.libxposed.service)
-    implementation(libs.dexkit)
     constraints {
         // 延续旧依赖图中两套 UI 共用的窗口尺寸和 Android 兼容组件版本。
         implementation(libs.androidx.compose.window.size)

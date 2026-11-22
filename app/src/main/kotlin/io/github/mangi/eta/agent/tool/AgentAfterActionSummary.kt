@@ -1,9 +1,8 @@
 package io.github.mangi.eta.agent.tool
 
-import io.github.mangi.eta.agent.device.RootShellDeviceController.ElementObservation
-import io.github.mangi.eta.agent.device.RootShellDeviceController.Observation
-import io.github.mangi.eta.agent.device.RootShellDeviceController.UiNode
-import io.github.mangi.eta.agent.device.ScreenObservationMetadata
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController.ElementObservation
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController.Observation
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController.UiNode
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -29,9 +28,7 @@ internal object AgentAfterActionSummary {
             null
         }
         val note = if (changed == null) {
-            metadata.optString("ui_tree_note").ifBlank {
-                ScreenObservationMetadata.uiTreeNote(status, observation.image != null)
-            }
+            metadata.optString("ui_tree_note").ifBlank { uiTreeNote(status, observation.image != null) }
         } else if (changed) {
             "以上为动作后的新界面，可直接用该 observation_id 继续操作；需要更多节点或截图时再调用 observe_screen"
         } else {
@@ -58,6 +55,26 @@ internal object AgentAfterActionSummary {
                 metadata.optJSONObject("focus")?.let { put("focus", it) }
                 metadata.optString("code").takeIf(String::isNotBlank)?.let { put("code", it) }
             }
+    }
+
+    private fun uiTreeNote(status: String, screenshotAttached: Boolean): String {
+        val description = when (status) {
+            "not_requested" -> "本次未请求节点树"
+            "available" -> "节点树可用"
+            "empty" -> "已读取窗口，但没有可用节点；不能据此判断应用不支持当前显示屏"
+            "no_window" -> "目标显示屏未返回可观察窗口"
+            "root_unavailable" -> "已找到目标窗口，但暂时无法读取根节点"
+            "timeout" -> "节点查询超时"
+            "busy" -> "上一次节点查询尚未结束"
+            "query_failed" -> "节点查询失败"
+            else -> "无障碍服务不可用，当前没有节点读取通道"
+        }
+        if (status == "not_requested" || status == "available") return description
+        return description + if (screenshotAttached) {
+            "；可结合本次截图观察界面"
+        } else {
+            "；可请求截图确认当前界面"
+        }
     }
 
     private fun signature(nodes: List<UiNode>): List<String> =

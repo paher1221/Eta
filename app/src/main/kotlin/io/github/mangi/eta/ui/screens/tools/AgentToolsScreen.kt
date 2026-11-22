@@ -123,7 +123,7 @@ fun AgentToolsScreen(
             }
         }
         disabledTools = next
-        Prefs.setToolEnabled(toolId, enabled, EtaApp.serviceInstance)
+        Prefs.setToolEnabled(toolId, enabled)
     }
 
     val setGroupEnabled: (Collection<String>, Boolean) -> Unit = { toolIds, enabled ->
@@ -139,7 +139,7 @@ fun AgentToolsScreen(
             }
         }
         disabledTools = next
-        Prefs.setToolsEnabled(toolIds, enabled, EtaApp.serviceInstance)
+        Prefs.setToolsEnabled(toolIds, enabled)
     }
 
     val capabilities = rememberDeviceCapabilities()
@@ -150,8 +150,6 @@ fun AgentToolsScreen(
     val visibleGroups = projectToolGroups(
         state.groups,
         showAll,
-        capabilities.root.isGranted,
-        capabilities.tools.colorOs,
     )
     val activeFilterId = if (selectedGroupId == ALL_GROUP_FILTER || visibleGroups.any { it.id == selectedGroupId }) {
         selectedGroupId
@@ -204,19 +202,6 @@ fun AgentToolsScreen(
                         onSelectGroup = { selectedGroupId = it },
                     )
                 }
-                if (activeFilterId == ALL_GROUP_FILTER) {
-                    item(key = "capability-discovery") {
-                        CouiPreferenceGroup {
-                            item {
-                                CouiPreference(
-                                    title = stringResource(R.string.capability_enhancements),
-                                    summary = stringResource(R.string.capability_enhancements_summary),
-                                    onClick = { onAction(AgentToolsAction.OpenEnhancements) },
-                                )
-                            }
-                        }
-                    }
-                }
                 displayedGroups.forEach { group ->
                     val enabledCount = group.tools.count { Prefs.isToolEnabledInSet(it.id, disabledTools) }
                     val allEnabled = enabledCount == group.tools.size
@@ -246,7 +231,7 @@ fun AgentToolsScreen(
                                 tool = tool,
                                 checked = Prefs.isToolEnabledInSet(tool.id, disabledTools),
                                 onCheckedChange = { enabled -> setToolEnabled(tool.id, enabled) },
-                                rootGranted = capabilities.root.isGranted,
+                                rootGranted = false,
                                 capabilities = capabilities.tools,
                                 onAction = onAction,
                                 onInspectDescription = { title, desc -> inspectedTool = title to desc },
@@ -315,8 +300,6 @@ fun AgentToolsScreen(
                     val pageVisibleGroups = projectToolGroups(
                         state.groups,
                         pageShowAll,
-                        capabilities.root.isGranted,
-                        capabilities.tools.colorOs,
                     )
                     val pageFilterId = if (selectedGroupId == ALL_GROUP_FILTER || pageVisibleGroups.any { it.id == selectedGroupId }) {
                         selectedGroupId
@@ -358,21 +341,6 @@ fun AgentToolsScreen(
                                 onSelectGroup = { selectedGroupId = it },
                             )
                         }
-                        if (pageFilterId == ALL_GROUP_FILTER) {
-                            item(key = "capability-discovery") {
-                                Card(
-                                    modifier = Modifier
-                                        .padding(horizontal = 12.dp)
-                                        .padding(top = 4.dp, bottom = 8.dp),
-                                ) {
-                                    ArrowPreference(
-                                        title = stringResource(R.string.capability_enhancements),
-                                        summary = stringResource(R.string.capability_enhancements_summary),
-                                        onClick = { onAction(AgentToolsAction.OpenEnhancements) },
-                                    )
-                                }
-                            }
-                        }
                         pageDisplayedGroups.forEach { group ->
                             val enabledCount = group.tools.count { Prefs.isToolEnabledInSet(it.id, disabledTools) }
                             val allEnabled = enabledCount == group.tools.size
@@ -407,7 +375,7 @@ fun AgentToolsScreen(
                                         tool = tool,
                                         checked = Prefs.isToolEnabledInSet(tool.id, disabledTools),
                                         onCheckedChange = { enabled -> setToolEnabled(tool.id, enabled) },
-                                        rootGranted = capabilities.root.isGranted,
+                                        rootGranted = false,
                                         capabilities = capabilities.tools,
                                         onAction = onAction,
                                     )

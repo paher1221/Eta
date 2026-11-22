@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.scheduler.ScheduledTaskScheduleCalculator
 import io.github.mangi.eta.data.model.AppearanceUiStyle
@@ -153,7 +152,7 @@ internal fun ScheduledTaskEditorScreen(
     var saving by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        RuntimeConfigRepository.ensureDefaults(EtaApp.serviceInstance)
+        RuntimeConfigRepository.ensureDefaults()
     }
 
     LaunchedEffect(taskId) {

@@ -25,7 +25,6 @@ import io.github.mangi.eta.data.provider.GeminiModelCapabilities
 import io.github.mangi.eta.data.provider.ProviderSourceRegistry
 import io.github.mangi.eta.data.provider.ProviderConnectionProfile
 import io.github.mangi.eta.data.provider.ReasoningCapabilityResolver
-import io.github.libxposed.service.XposedService
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -276,16 +275,9 @@ internal object RuntimeConfigRepository {
         return buildRuntimeConfig(provider, model)
     }
 
-    suspend fun syncToRemotePreferences(service: XposedService?): Boolean {
-        val prefs = Prefs.remotePreferencesForUi(service) ?: return false
-        val config = currentRuntimeConfig() ?: return clearRuntimeConfig(prefs)
-        return writeRuntimeConfig(prefs, config)
-    }
-
-    suspend fun ensureDefaults(service: XposedService?) {
+    suspend fun ensureDefaults() {
         ProviderRepository.ensureBuiltInsMerged()
         ProviderRepository.repairSelection()
-        syncToRemotePreferences(service)
     }
 
     fun runtimeConfigJson(config: AgentModelClient.ModelConfig): String =
@@ -355,21 +347,4 @@ internal object RuntimeConfigRepository {
         is CustomProviderSetting -> endpointMode
         is AnthropicProviderSetting, is GeminiProviderSetting -> ""
     }
-
-    private fun writeRuntimeConfig(
-        prefs: SharedPreferences,
-        config: AgentModelClient.ModelConfig,
-    ): Boolean =
-        runCatching {
-            prefs.edit()
-                .putString(Prefs.Keys.AGENT_RUNTIME_CONFIG_JSON, runtimeConfigJson(config))
-                .commit()
-        }.getOrDefault(false)
-
-    private fun clearRuntimeConfig(prefs: SharedPreferences): Boolean =
-        runCatching {
-            prefs.edit()
-                .remove(Prefs.Keys.AGENT_RUNTIME_CONFIG_JSON)
-                .commit()
-        }.getOrDefault(false)
 }

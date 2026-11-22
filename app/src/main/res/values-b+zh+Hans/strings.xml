@@ -27,7 +27,6 @@
   <string name="settings_language">语言</string>
   <string name="settings_language_system">跟随系统</string>
   <string name="app_name">Eta</string>
-  <string name="xposed_description">系统级 AI Agent，解锁 Gemini 与一圈即搜，集成浏览器、终端与设备工具</string>
   <string name="agent_accessibility_label">Eta Agent</string>
   <string name="agent_accessibility_description">读取屏幕内容并执行点击、滑动、文字输入等操作，协助 Agent 完成任务。</string>
   <string name="notification_history_service_label">Eta 通知历史</string>
@@ -62,7 +61,6 @@
   <string name="action_open_browser">打开浏览器</string>
   <string name="route_tools">工具能力</string>
   <string name="route_permissions">权限</string>
-  <string name="route_system_enhancements">系统增强</string>
   <string name="route_settings">设置</string>
   <string name="route_memory">记忆</string>
   <string name="route_linux_environment">Linux 工具环境</string>

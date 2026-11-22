@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.tool.AgentToolCapabilities
-import io.github.mangi.eta.agent.tool.RootRequirement
 import io.github.mangi.eta.data.model.AppearanceUiStyle
 import io.github.mangi.eta.ui.app.LocalUiStyle
 import io.github.mangi.eta.ui.components.ItemDescriptionDialog
@@ -77,7 +76,7 @@ internal fun ToolSwitchRow(
     } else {
         tool.summary
     }
-    val requirementText = toolRequirementText(tool.id, rootGranted, capabilities)
+    val requirementText = toolRequirementText(tool.id, capabilities)
     val fullDescription = listOfNotNull(description, requirementText).joinToString("\n\n")
     val action = toolCardAction(tool.id, capabilities)
     val actionLabel = when (action) {
@@ -85,7 +84,6 @@ internal fun ToolSwitchRow(
         AgentToolsAction.OpenImageGenSettings -> stringResource(R.string.image_gen_configure_action)
         AgentToolsAction.OpenBrowser -> stringResource(R.string.action_open_browser)
         AgentToolsAction.OpenPermissions -> stringResource(R.string.tools_manage_permissions)
-        AgentToolsAction.OpenEnhancements -> null
         else -> null
     }
     val iconVector = iconForTool(tool.id)
@@ -358,17 +356,14 @@ internal fun ToolSwitchRow(
 }
 
 @Composable
-private fun toolRequirementText(id: String, rootGranted: Boolean, capabilities: AgentToolCapabilities): String? {
+private fun toolRequirementText(id: String, capabilities: AgentToolCapabilities): String? {
     val requirement = toolCardRequirement(id)
     val unavailableCode = capabilities.unavailableCode(actualToolName(id))
     return when {
-        !rootGranted && requirement.rootRequirement == RootRequirement.REQUIRED -> stringResource(R.string.capability_root_required)
         !capabilities.accessibilityAvailable && requirement.accessibility -> stringResource(R.string.capability_accessibility_required)
         unavailableCode == "NOTIFICATION_ACCESS_REQUIRED" -> stringResource(R.string.capability_notification_access_required)
         unavailableCode == "APP_USAGE_ACCESS_REQUIRED" -> stringResource(R.string.capability_usage_access_required)
         unavailableCode == "LOCATION_PERMISSION_REQUIRED" -> stringResource(R.string.capability_location_access_required)
-        requirement.colorOs -> stringResource(R.string.capability_coloros_required)
-        !rootGranted && requirement.rootRequirement == RootRequirement.PARTIAL -> stringResource(R.string.capability_root_partial)
         else -> null
     }
 }

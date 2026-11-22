@@ -5,7 +5,7 @@ import android.graphics.Rect
 import android.provider.Settings
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
-import io.github.mangi.eta.agent.device.RootShellDeviceController
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController
 import io.github.mangi.eta.core.AgentLogger
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -48,8 +48,8 @@ class AccessibilityPlatformCompatibilityTest {
             shadowOf(service).setWindowsOnDisplay(0, listOf(window))
             val executor = Executors.newSingleThreadExecutor()
             val observation = try {
-                executor.submit<RootShellDeviceController.Observation> {
-                    RootShellDeviceController(NoOpLogger, rootAvailable = { false })
+                executor.submit<AccessibilityDeviceController.Observation> {
+                    AccessibilityDeviceController(NoOpLogger)
                         .observe(includeScreenshot = true, includeUiTree = true, maxNodes = 60)
                 }.get(3, TimeUnit.SECONDS)
             } finally {

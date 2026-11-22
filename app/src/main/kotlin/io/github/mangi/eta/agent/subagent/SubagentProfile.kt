@@ -2,9 +2,7 @@ package io.github.mangi.eta.agent.subagent
 
 import androidx.annotation.StringRes
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.context.PersonalSearchTools
 import io.github.mangi.eta.agent.model.AgentFileToolCatalog
-import io.github.mangi.eta.agent.model.AgentPhoneToolCatalog
 import io.github.mangi.eta.agent.model.AgentTerminalToolCatalog
 import io.github.mangi.eta.core.AppStrings
 import org.json.JSONArray
@@ -53,9 +51,7 @@ internal data class SubagentProfile(
         val customAllowlist = explicitTools
         if (customAllowlist != null) {
             if (toolName in customAllowlist) return true
-            if ("personal_data" in customAllowlist &&
-                (toolName in PersonalSearchTools.names || toolName in AgentPhoneToolCatalog.reads)
-            ) {
+            if ("personal_data" in customAllowlist && toolName in PERSONAL_READ_TOOLS) {
                 return true
             }
             if ("*" in customAllowlist) {
@@ -63,7 +59,7 @@ internal data class SubagentProfile(
             }
             return false
         }
-        if (toolName in READ_ONLY_TOOLS || toolName in PersonalSearchTools.names || toolName in AgentPhoneToolCatalog.reads) {
+        if (toolName in READ_ONLY_TOOLS || toolName in PERSONAL_READ_TOOLS) {
             return true
         }
         if (!allowWriteFilesAndTerminal) return false
@@ -129,45 +125,16 @@ internal data class SubagentProfile(
             "inspect_app",
             "device_status",
             "network_info",
-            "top_memory_apps",
-            "top_storage_apps",
-            "get_setting",
-            "get_logcat",
             "get_current_location",
             "get_device_environment",
-            "list_alarms",
-            "list_active_timers",
-            "get_health_summary",
             "recent_notifications",
             "search_notification_history",
             "recent_app_activity",
             "app_usage_summary",
-            "search_clipboard_history",
             "get_clipboard",
             "get_flashlight",
-            "get_device_state",
             "get_display_state",
             "get_sound_state",
-            "get_hotspot",
-            "read_personal_item",
-            "summarize_bills",
-            "search_media",
-            "search_audio",
-            "search_recordings",
-            "search_files",
-            "search_calendar_events",
-            "search_contacts",
-            "search_call_history",
-            "search_messages",
-            "search_downloads",
-            "search_notes",
-            "search_coloros_recordings",
-            "search_recording_summaries",
-            "search_system_memories",
-            "search_saved_places",
-            "search_personal_orders",
-            "search_qq_chat_images",
-            "search_wechat_chat_images",
             "memory_get",
             "character_memory_get",
             "skills_list",
@@ -176,18 +143,29 @@ internal data class SubagentProfile(
         )
 
         /**
+         * 保留的设备个人数据敏感读工具。`personal_data` 白名单与默认允许集均以此为口径。
+         */
+        private val PERSONAL_READ_TOOLS = setOf(
+            "recent_notifications",
+            "search_notification_history",
+            "recent_app_activity",
+            "app_usage_summary",
+            "get_current_location",
+            "get_device_environment",
+        )
+
+        /**
          * 设备状态修改与动作类写工具。未显式点名授权时，通配 `*` 默认排除这些工具，
          * 避免多个并发 Subagent 互相修改系统设置、音量或应用状态；仍允许在自定义 Profile
          * 的 `tools` 列表里显式点名放行（`FORBIDDEN_TOOLS` 除外）。
          */
-        val DEFAULT_DEVICE_WRITE_TOOLS: Set<String> = AgentPhoneToolCatalog.writes + setOf(
-            "set_setting",
-            "set_device_state",
-            "app_state_control",
+        val DEFAULT_DEVICE_WRITE_TOOLS: Set<String> = setOf(
             "set_alarm",
             "set_timer",
             "set_volume",
             "media_control",
+            "set_flashlight",
+            "set_do_not_disturb",
         )
 
         private val CODER_EXTRA_TOOLS =
@@ -197,7 +175,7 @@ internal data class SubagentProfile(
             name = TYPE_EXPLORE,
             summary = "只读探索与多源信息检索",
             whenToUse = "Fast read-only agent specialized for exploring files, personal device data (calendar, notes, messages, notifications, bills, media, system memories), logs, and web pages. Specify desired thoroughness in the prompt: \"quick\", \"medium\", or \"thorough\".",
-            toolHighlights = listOf("read_file", "glob_files", "grep_files", "web_search", "fetch_url", "personal_data", "get_logcat"),
+            toolHighlights = listOf("read_file", "glob_files", "grep_files", "web_search", "fetch_url", "personal_data"),
             roleInstruction = "你是只读探索 Subagent（explore）。你的职责是快速、准确地检索文件、设备个人数据、系统状态或网页资料，" +
                 "严禁尝试修改任何文件或设备状态。在最终回复中直接给出结构化证据、关键路径/时间点与结论摘要。",
             allowWriteFilesAndTerminal = false,
@@ -259,8 +237,7 @@ internal data class SubagentProfile(
                 val narrowedTools = cleanTools.filter { tool ->
                     when (tool) {
                         "*" -> false
-                        "personal_data" -> PersonalSearchTools.names.any(matched::isToolAllowed) ||
-                            AgentPhoneToolCatalog.reads.any(matched::isToolAllowed)
+                        "personal_data" -> PERSONAL_READ_TOOLS.any(matched::isToolAllowed)
                         else -> matched.isToolAllowed(tool)
                     }
                 }

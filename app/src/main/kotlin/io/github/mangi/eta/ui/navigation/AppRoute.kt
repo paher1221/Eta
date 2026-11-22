@@ -70,9 +70,6 @@ sealed interface AppRoute : NavKey {
     data object Permissions : AppRoute
 
     @Serializable
-    data object SystemEnhance : AppRoute
-
-    @Serializable
     data object Settings : AppRoute
 
     @Serializable

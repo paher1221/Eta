@@ -23,12 +23,26 @@ internal class AgentPersonalContextTools(private val context: Context) {
     private val notificationHistory by lazy { NotificationHistoryRepository(context) }
 
     fun execute(name: String, args: JSONObject): AgentModelClient.ToolResult? = when (name) {
+        "recent_notifications" -> sensitive(recentNotifications(args))
         "search_notification_history" -> sensitive(searchNotificationHistory(args))
         "recent_app_activity" -> sensitive(recentAppActivity(args))
         "app_usage_summary" -> sensitive(appUsageSummary(args))
         "get_current_location" -> sensitive(currentLocation())
         "get_device_environment" -> sensitive(deviceEnvironment())
         else -> null
+    }
+
+    private fun recentNotifications(args: JSONObject): String {
+        if (!AgentNotificationHistoryService.isEnabled(context)) {
+            return error(
+                "NOTIFICATION_HISTORY_ACCESS_REQUIRED",
+                "请先在权限健康页授予 Eta 通知使用权；授权后开始记录最近通知",
+            )
+        }
+        return notificationHistory.recent(
+            packageName = args.optString("package_name").trim(),
+            limit = args.optInt("limit", 10).coerceIn(1, 20),
+        )
     }
 
     private fun searchNotificationHistory(args: JSONObject): String {

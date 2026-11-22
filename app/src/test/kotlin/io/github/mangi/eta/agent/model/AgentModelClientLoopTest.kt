@@ -6,8 +6,6 @@ import io.github.mangi.eta.agent.tool.AgentToolCapabilities
 import io.github.mangi.eta.data.model.OpenAiEndpointMode
 import io.github.mangi.eta.data.model.ProviderTypes
 import java.util.concurrent.atomic.AtomicInteger
-import io.github.mangi.eta.agent.device.RootAccessState
-import io.github.mangi.eta.agent.device.RootAccessStatus
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -18,53 +16,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AgentModelClientLoopTest {
-    @Test
-    fun rootProbeStatesKeepThePrefixStableUntilGrantActuallyChanges() {
-        var root = RootAccessState(isChecking = true)
-        val calls = mutableListOf<String>()
-        val systems = mutableListOf<String>()
-        val toolLists = mutableListOf<String>()
-        fun record(request: ProviderRequest) {
-            systems += (0 until request.messages.length()).map(request.messages::getJSONObject)
-                .filter { it.optString("role") == "system" }.joinToString { it.toString() }
-            toolLists += request.tools.toString()
-        }
-        val provider = ScriptedProvider(listOf(
-            { request, _ ->
-                record(request)
-                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("context", "get_current_context", "{}")))
-            },
-            { request, _ ->
-                record(request)
-                assertFalse(request.tools.toString().contains("set_setting"))
-                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("probe", "terminal", """{"action":"check_root"}""")))
-            },
-            { request, _ ->
-                record(request)
-                assertTrue(request.messages.toString().contains("Root 授权已确认"))
-                assertTrue(request.tools.toString().contains("set_setting"))
-                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("root-command", "terminal", """{"command":"id -u","identity":"root"}""")))
-            },
-            { _, _ -> assistant(content = "已验证 Root", finishReason = "stop") },
-        ))
-        AgentModelClient.complete(
-            modelConfig().copy(terminalTools = true, deviceSensitiveActionTools = true), "检查 Root",
-            AgentModelClient.ToolExecutor { call ->
-                calls += call.id
-                root = if (call.id == "context") RootAccessState(RootAccessStatus.TIMED_OUT, suPresent = true)
-                    else RootAccessState(RootAccessStatus.GRANTED, suPresent = true)
-                AgentModelClient.ToolResult("""{"ok":true}""")
-            },
-            provider = provider,
-            capabilitiesProvider = { AgentToolCapabilities(rootAvailable = root.isGranted, rootState = root) },
-        )
-        assertEquals(listOf("context", "probe", "root-command"), calls)
-        // 检测中 → 超时都未授权：系统提示与工具目录逐字节不变；授权确认后才整体更新。
-        assertEquals(systems[0], systems[1])
-        assertEquals(toolLists[0], toolLists[1])
-        assertNotEquals(systems[1], systems[2])
-    }
-
     @Test
     fun transientCapabilityLossDoesNotShrinkTheToolCatalogMidRun() {
         var accessibility = true
@@ -176,21 +127,22 @@ class AgentModelClientLoopTest {
 
     @Test
     fun eachRoundUsesOneCapabilitySnapshotForToolAvailabilityAndPrompt() {
+        var notifications = true
         var root = true
         var captures = 0
         val executed = mutableListOf<String>()
         val provider = ScriptedProvider(listOf(
             { request, _ ->
-                assertTrue(request.tools.toString().contains("set_setting"))
+                assertTrue(request.tools.toString().contains("recent_notifications"))
                 assertTrue(request.messages.toString().contains("相关应用私有文件与数据库"))
                 assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("first", "get_current_context", "{}")))
             },
             { request, _ ->
-                assertFalse(request.tools.toString().contains("set_setting"))
+                assertFalse(request.tools.toString().contains("recent_notifications"))
                 assertFalse(request.messages.toString().contains("相关应用私有文件与数据库"))
                 assertTrue(request.messages.toString().contains("identity=user"))
                 assistant(finishReason = "tool_calls", toolCalls = listOf(
-                    toolCall("stale", "set_setting", "{}"),
+                    toolCall("stale", "recent_notifications", "{}"),
                 ))
             },
             { request, _ ->
@@ -199,15 +151,16 @@ class AgentModelClientLoopTest {
             },
         ))
         AgentModelClient.complete(
-            config = modelConfig().copy(terminalTools = true, deviceSensitiveActionTools = true),
+            config = modelConfig().copy(terminalTools = true, deviceSensitiveReadTools = true),
             prompt = "开始",
             provider = provider,
             capabilitiesProvider = {
                 captures++
-                AgentToolCapabilities(rootAvailable = root)
+                AgentToolCapabilities(rootAvailable = root, notificationsAllowed = notifications)
             },
             toolExecutor = AgentModelClient.ToolExecutor {
                 executed += it.id
+                notifications = false
                 root = false
                 AgentModelClient.ToolResult("{\"ok\":true}")
             },
@@ -233,24 +186,24 @@ class AgentModelClientLoopTest {
         }
         val provider = ScriptedProvider(listOf(
             { request, _ ->
-                assertTrue(request.tools.toString().contains("set_setting"))
+                assertTrue(request.tools.toString().contains("recent_notifications"))
                 assertTrue(request.messages.toString().contains("相关应用私有文件与数据库"))
                 firstAssistant
             },
             { request, _ ->
-                assertTrue(request.tools.toString().contains("set_setting"))
+                assertTrue(request.tools.toString().contains("recent_notifications"))
                 assertTrue(request.messages.toString().contains("相关应用私有文件与数据库"))
                 assistant(content = "完成", finishReason = "stop")
             },
         ))
 
         AgentModelClient.complete(
-            config = modelConfig().copy(terminalTools = true, deviceSensitiveActionTools = true),
+            config = modelConfig().copy(terminalTools = true, deviceSensitiveReadTools = true),
             prompt = "开始",
             provider = provider,
             capabilitiesProvider = {
                 captures++
-                AgentToolCapabilities(rootAvailable = root)
+                AgentToolCapabilities(rootAvailable = root, notificationsAllowed = true)
             },
             toolExecutor = AgentModelClient.ToolExecutor {
                 root = false

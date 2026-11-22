@@ -3,8 +3,6 @@ package io.github.mangi.eta.agent.tool
 import android.content.Context
 import android.net.Uri
 import io.github.mangi.eta.agent.device.BoundedFileCopy
-import io.github.mangi.eta.agent.device.BoundedRootCommandExecutor
-import io.github.mangi.eta.agent.device.RootAccess
 import io.github.mangi.eta.agent.media.AgentImageCodec
 import io.github.mangi.eta.agent.media.ModelImageBudget
 import io.github.mangi.eta.agent.model.AgentModelClient
@@ -16,8 +14,6 @@ import org.json.JSONObject
 /** 读取用户已明确指定的单张图片，流式采样并按当前渠道预算编码后作为临时视觉附件交给模型。 */
 internal class AgentImageTools(
     private val context: Context,
-    private val root: BoundedRootCommandExecutor,
-    private val rootAvailable: () -> Boolean = { RootAccess.isGranted },
     private val imageBudgetProvider: () -> ModelImageBudget = { ModelImageBudget.DEFAULT },
 ) {
     fun readImage(args: JSONObject): AgentModelClient.ToolResult {
@@ -51,19 +47,7 @@ internal class AgentImageTools(
         return try {
             val staged = copyAsApp(source, sourceKind, temporaryFile, cacheDir)
             if (!staged) {
-                if (!rootAvailable()) {
-                    return sensitive(error("IMAGE_ACCESS_DENIED", "Eta 无法读取此图片；请先通过文件选择器导入或授予读取权限"))
-                }
-                val copyAllowance = BoundedFileCopy.availableWriteAllowance(cacheDir)
-                if (copyAllowance != null && copyAllowance <= 0L) {
-                    return sensitive(error("IMAGE_INSUFFICIENT_STORAGE", "设备可用存储空间不足，无法暂存图片"))
-                }
-                val copyResult = root.execute(
-                    imageCopyCommand(source, sourceKind, temporaryFile, copyAllowance),
-                    timeoutMillis = READ_TIMEOUT_MS,
-                    maxOutputBytes = 8 * 1024,
-                )
-                if (!copyResult.ok) return sensitive(copyFailure(copyResult))
+                return sensitive(error("IMAGE_ACCESS_DENIED", "Eta 无法读取此图片；请先通过文件选择器导入或授予读取权限"))
             }
             val image = AgentImageCodec.fromToolFile(
                 file = temporaryFile,
@@ -127,41 +111,10 @@ internal class AgentImageTools(
         false
     }
 
-    private fun imageCopyCommand(
-        source: String,
-        sourceKind: ImageSourceKind,
-        destination: File,
-        maxCopyBytes: Long?,
-    ): String = when (sourceKind) {
-        ImageSourceKind.File -> buildString {
-            append("[ -f ").append(shellQuote(source)).append(" ] || exit 21; ")
-            if (maxCopyBytes != null) {
-                append("[ \"$(stat -c %s ").append(shellQuote(source)).append(")\" -le ")
-                    .append(maxCopyBytes).append(" ] || exit 22; ")
-            }
-            append("cp ").append(shellQuote(source)).append(' ')
-                .append(shellQuote(destination.absolutePath)).append(" || exit 23")
-        }
-        ImageSourceKind.ContentUri -> if (maxCopyBytes != null) {
-            "content read --uri ${shellQuote(source)} 2>/dev/null | " +
-                "head -c ${maxCopyBytes + 1L} > ${shellQuote(destination.absolutePath)} && " +
-                "([ \"$(stat -c %s ${shellQuote(destination.absolutePath)})\" -le $maxCopyBytes ] || exit 22)"
-        } else {
-            "content read --uri ${shellQuote(source)} 2>/dev/null > ${shellQuote(destination.absolutePath)} || exit 23"
-        }
-    }
-
     private fun imageCacheDirectory(): File =
         context.externalCacheDir
             ?.takeIf { it.isDirectory || it.mkdirs() }
             ?: context.cacheDir
-
-    private fun copyFailure(result: BoundedRootCommandExecutor.Result): String = when (result.exitCode) {
-        21 -> error("IMAGE_SOURCE_UNAVAILABLE", "图片源文件不存在或当前不可读")
-        22 -> error("IMAGE_INSUFFICIENT_STORAGE", "设备可用存储空间不足，无法暂存图片")
-        23 -> error("IMAGE_STAGE_FAILED", "Root 无法将图片复制到 Eta 临时缓存")
-        else -> error("IMAGE_UNAVAILABLE", "图片读取失败")
-    }
 
     private fun error(code: String, message: String): String =
         JSONObject().put("ok", false).put("code", code).put("message", message).toString()
@@ -171,14 +124,8 @@ internal class AgentImageTools(
         images: List<AgentModelClient.ModelImage> = emptyList(),
     ) = AgentModelClient.ToolResult(content = content, images = images, sensitive = true)
 
-    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
-
     private enum class ImageSourceKind {
         File,
         ContentUri,
-    }
-
-    private companion object {
-        const val READ_TIMEOUT_MS = 15_000L
     }
 }

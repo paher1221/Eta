@@ -4,22 +4,16 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
-import io.github.mangi.eta.agent.accessibility.AccessibilityProtectionClient
 import io.github.mangi.eta.agent.device.AgentNotificationHistoryService
-import io.github.mangi.eta.agent.device.RootAccessState
-import io.github.mangi.eta.agent.device.RootAccess
 import java.util.Locale
 import org.json.JSONArray
 
 /** 每轮冻结的运行条件；不包含用户开关，也不触发授权请求。 */
 internal data class AgentToolCapabilities(
-    val rootAvailable: Boolean,
-    val rootState: RootAccessState? = null,
-    val lsposedAvailable: Boolean = false,
+    // Root 相关能力已整体移除，恒为 false；保留字段以兼容提示词与工具目录的既有签名。
+    val rootAvailable: Boolean = false,
     val accessibilityAvailable: Boolean = true,
-    val accessibilityRecoveryAvailable: Boolean = false,
     val notificationsAllowed: Boolean = true,
     val usageAllowed: Boolean = true,
     val locationAllowed: Boolean = true,
@@ -35,36 +29,26 @@ internal data class AgentToolCapabilities(
         if (name in setOf("get_flashlight", "set_flashlight") && !flashlightAvailable) return "DEVICE_UNSUPPORTED"
         if (name in setOf("get_hotspot", "set_hotspot") && !hotspotAvailable) return "DEVICE_UNSUPPORTED"
         val requirement = AgentToolRequirements.find(name) ?: return "UNKNOWN_TOOL"
-        if (requirement.rootRequirement == RootRequirement.REQUIRED && !rootAvailable) return "ROOT_REQUIRED"
-        if (requirement.lsposedRequirement == LsposedRequirement.REQUIRED && !lsposedAvailable) return "LSPOSED_REQUIRED"
-        if (requirement.colorOs && !colorOs) return "DEVICE_UNSUPPORTED"
-        if (requirement.accessibility && !accessibilityAvailable && !accessibilityRecoveryAvailable) {
+        if (requirement.accessibility && !accessibilityAvailable) {
             return "ACCESSIBILITY_UNAVAILABLE"
         }
         return when (requirement.systemAccess) {
-            ToolSystemAccess.CALENDAR_READ -> if (rootAvailable || calendarReadable) null else "CALENDAR_PERMISSION_REQUIRED"
-            ToolSystemAccess.CALENDAR_WRITE -> if (rootAvailable || calendarWritable) null else "CALENDAR_PERMISSION_REQUIRED"
+            ToolSystemAccess.CALENDAR_READ -> if (calendarReadable) null else "CALENDAR_PERMISSION_REQUIRED"
+            ToolSystemAccess.CALENDAR_WRITE -> if (calendarWritable) null else "CALENDAR_PERMISSION_REQUIRED"
             ToolSystemAccess.NONE -> null
-            ToolSystemAccess.NOTIFICATIONS -> if (notificationsAllowed ||
-                (rootAvailable && (name == "recent_notifications" ||
-                    (name == "search_personal_orders" && colorOs)))
-            ) null else "NOTIFICATION_ACCESS_REQUIRED"
+            ToolSystemAccess.NOTIFICATIONS -> if (notificationsAllowed) null else "NOTIFICATION_ACCESS_REQUIRED"
             ToolSystemAccess.USAGE -> if (usageAllowed) null else "APP_USAGE_ACCESS_REQUIRED"
             ToolSystemAccess.LOCATION -> if (locationAllowed) null else "LOCATION_PERMISSION_REQUIRED"
         }
     }
 
     fun project(tools: JSONArray): JSONArray {
-        val rootProjected = AgentToolRequirements.project(tools, rootAvailable)
+        val projected = AgentToolRequirements.project(tools)
         return JSONArray().also { visible ->
-            for (index in 0 until rootProjected.length()) {
-                val tool = rootProjected.getJSONObject(index)
+            for (index in 0 until projected.length()) {
+                val tool = projected.getJSONObject(index)
                 val name = tool.getJSONObject("function").getString("name")
                 if (unavailableCode(name) == null) {
-                    if (name in setOf("get_device_state", "set_device_state") && (!nfcAvailable || !nightLightAvailable)) {
-                        val target = tool.getJSONObject("function").getJSONObject("parameters").getJSONObject("properties").getJSONObject("target")
-                        target.put("enum", JSONArray(SystemStateControls.targets.filterNot { it == "nfc" && !nfcAvailable || it == "night_light" && !nightLightAvailable }))
-                    }
                     visible.put(tool)
                 }
             }
@@ -76,14 +60,8 @@ internal data class AgentToolCapabilities(
             setOf("oppo", "oneplus", "realme")
 
         fun capture(context: Context): AgentToolCapabilities {
-            val root = RootAccess.state.value
             return AgentToolCapabilities(
-                rootAvailable = root.isGranted,
-                rootState = root,
-                lsposedAvailable = EtaApp.serviceInstance != null,
                 accessibilityAvailable = AgentAccessibilityService.isAvailable(),
-                accessibilityRecoveryAvailable = EtaApp.serviceInstance != null &&
-                    AccessibilityProtectionClient.isEnabled(context),
                 notificationsAllowed = AgentNotificationHistoryService.isEnabled(context),
                 usageAllowed = AgentPersonalContextTools.hasUsageAccess(context),
                 locationAllowed = context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==

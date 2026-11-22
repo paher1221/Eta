@@ -1,6 +1,5 @@
 package io.github.mangi.eta.ui.pages.providers
 
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.auth.ProviderAccountSummary
 import io.github.mangi.eta.agent.auth.ProviderAuthException
@@ -196,7 +195,6 @@ internal interface ProviderLoginOperations {
 private object RepositoryProviderLoginOperations : ProviderLoginOperations {
     override suspend fun save(provider: ProviderSetting) {
         ProviderRepository.updateProvider(provider)
-        RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
     }
 
     override fun account(providerId: String, authMode: String): ProviderAccountSummary? =
@@ -221,7 +219,6 @@ private object RepositoryProviderLoginOperations : ProviderLoginOperations {
         }
         val catalog = RemoteModelFetcher.fetchCatalog(provider).getOrThrow()
         val result = ModelRepository.syncRemoteCatalog(catalog)
-        RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
         return result.fetchedCount
     }
 

@@ -43,7 +43,6 @@ class AppRouteSerializationTest {
             AppRoute.CharacterPersona,
             AppRoute.CharacterMemory("character"),
             AppRoute.Permissions,
-            AppRoute.SystemEnhance,
             AppRoute.Settings,
             AppRoute.AppearanceSettings,
             AppRoute.SpeechSettings,

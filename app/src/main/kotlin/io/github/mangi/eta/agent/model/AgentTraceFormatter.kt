@@ -109,8 +109,6 @@ internal class AgentTraceFormatter {
             "skills_install_from_github" -> AppStrings.get(R.string.trace_arg_skills_install_from_github, "安装技能")
             else -> {
                 val label = DEVICE_ACTION_LABELS[toolCall.name]?.resolve()
-                    ?: AgentPhoneToolCatalog.entries.firstOrNull { it.name == toolCall.name }?.title
-                    ?: io.github.mangi.eta.agent.context.PersonalSearchTools.searches.firstOrNull { it.name == toolCall.name }?.title
                     ?: when (toolCall.name) {
                         "search_notes" -> AppStrings.get(R.string.trace_arg_search_notes, "查询便签")
                         "search_system_memories" ->

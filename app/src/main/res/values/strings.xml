@@ -24,7 +24,6 @@
   <string name="settings_language">Language</string>
   <string name="settings_language_system">Follow system</string>
   <string name="app_name">Eta</string>
-  <string name="xposed_description">A system-level AI agent that enables Gemini and Circle to Search, and integrates browser, terminal, and device tools.</string>
   <string name="agent_accessibility_label">Eta Agent</string>
   <string name="agent_accessibility_description">Read screen content and perform taps, swipes, text input, and other actions to help the agent complete tasks.</string>
   <string name="notification_history_service_label">Eta notification history</string>
@@ -61,7 +60,6 @@
   <string name="route_tools">Tools</string>
   <string name="route_skills" translatable="false">Skills</string>
   <string name="route_permissions">Permissions</string>
-  <string name="route_system_enhancements">System enhancements</string>
   <string name="route_settings">Settings</string>
   <string name="route_memory">Memory</string>
   <string name="route_linux_environment">Linux environment</string>

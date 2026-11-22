@@ -2,7 +2,6 @@ package io.github.mangi.eta.agent.terminal
 
 import android.content.Context
 import io.github.mangi.eta.core.AndroidAgentLogger
-import io.github.mangi.eta.agent.device.RootAccess
 import io.github.mangi.eta.agent.runtime.AgentExecutionService
 import java.io.File
 
@@ -44,7 +43,7 @@ internal object TerminalRuntime {
         File(userWorkspacePath).mkdirs()
     }
 
-    val rootAvailable: Boolean get() = RootAccess.isGranted
+    val rootAvailable: Boolean get() = false
     val publicStorageGranted: Boolean get() = appContext != null && android.os.Environment.isExternalStorageManager()
     val nativeLibraryDir: File? get() = appContext?.applicationInfo?.nativeLibraryDir?.let(::File)
     val userWorkspacePath: String get() = appContext?.let {
@@ -55,7 +54,6 @@ internal object TerminalRuntime {
 
     fun defaultIdentity(environment: TerminalEnvironment, rootfsPath: String? = null): String = when {
         environment.isLinux -> if (LinuxEnvironmentPaths.backendOf(rootfsPath) == LinuxExecutionBackend.PROOT) "user" else "root"
-        rootAvailable -> "root"
         else -> "user"
     }
 

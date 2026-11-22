@@ -250,7 +250,7 @@ class GrokResponsesRequestTest {
         skillGitHubDiscovery = true,
         skillGitHubInstall = true,
         memoryTools = true,
-        capabilities = AgentToolCapabilities(rootAvailable = true, lsposedAvailable = true),
+        capabilities = AgentToolCapabilities(rootAvailable = true),
     )
 
     private fun userMessages(): JSONArray = JSONArray().put(AgentConversationCodec.userTextMessage("测试请求"))

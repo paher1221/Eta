@@ -38,6 +38,45 @@ internal class NotificationHistoryRepository(context: Context) {
         }
     }
 
+    fun recent(packageName: String, limit: Int): String {
+        val clauses = mutableListOf("posted_at>=?")
+        val args = mutableListOf((System.currentTimeMillis() - RETENTION_MS).toString())
+        if (packageName.isNotBlank()) {
+            clauses += "package_name=?"
+            args += packageName
+        }
+        val items = JSONArray()
+        database.readableDatabase.query(
+            TABLE,
+            arrayOf("package_name", "title", "text", "sub_text", "posted_at"),
+            clauses.joinToString(" AND "),
+            args.toTypedArray(),
+            null,
+            null,
+            "posted_at DESC",
+            limit.toString(),
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                items.put(
+                    JSONObject()
+                        .put("package_name", cursor.getString(0))
+                        .put("title", cursor.getString(1))
+                        .put("text", cursor.getString(2))
+                        .put("sub_text", cursor.getString(3))
+                        .put("posted_at", cursor.getLong(4)),
+                )
+            }
+        }
+        return JSONObject()
+            .put("ok", true)
+            .put("tool", "recent_notifications")
+            .put("items", items)
+            .put("count", items.length())
+            .put("retention_days", RETENTION_DAYS)
+            .put("truncated", items.length() == limit)
+            .toString()
+    }
+
     fun search(query: String, packageName: String, maxAgeHours: Int, limit: Int): String {
         val clauses = mutableListOf("posted_at>=?")
         val args = mutableListOf((System.currentTimeMillis() - maxAgeHours * HOUR_MS).toString())

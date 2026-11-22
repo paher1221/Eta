@@ -13,10 +13,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.device.AgentFileReferenceGateway
-import io.github.mangi.eta.agent.device.RootAccess
 import io.github.mangi.eta.agent.media.AgentImageCodec
 import io.github.mangi.eta.agent.model.AgentFileReference
 import io.github.mangi.eta.agent.model.AgentFileReferenceKind
@@ -955,7 +953,7 @@ internal class AgentAppState(
         scope.launch(Dispatchers.IO) {
             try {
                 RuntimeConfigRepository.setSelectedModelId(modelId)
-                RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
+                
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Throwable) {
@@ -2090,25 +2088,23 @@ internal class AgentAppState(
             }
         }
         runStore.observe(runId, preparationJob)
-        if (!RootAccess.isGranted) {
-            val leaseId = "prepare:$runId"
-            val acquired = AgentExecutionService.acquire(appContext, leaseId) {
-                scope.launch(Dispatchers.Main.immediate) {
-                    if (runId in runStore.observedRunIds) stopRun(runId)
-                }
+        val leaseId = "prepare:$runId"
+        val acquired = AgentExecutionService.acquire(appContext, leaseId) {
+            scope.launch(Dispatchers.Main.immediate) {
+                if (runId in runStore.observedRunIds) stopRun(runId)
             }
-            if (!acquired) {
-                preparationJob.cancel()
-                applyRunResult(runId, AgentRuntimeWire.RunResult(
-                    runId = runId,
-                    ok = false,
-                    content = "",
-                    error = appContext.getString(R.string.capability_background_failed),
-                ))
-                return
-            }
-            preparationJob.invokeOnCompletion { AgentExecutionService.release(leaseId) }
         }
+        if (!acquired) {
+            preparationJob.cancel()
+            applyRunResult(runId, AgentRuntimeWire.RunResult(
+                runId = runId,
+                ok = false,
+                content = "",
+                error = appContext.getString(R.string.capability_background_failed),
+            ))
+            return
+        }
+        preparationJob.invokeOnCompletion { AgentExecutionService.release(leaseId) }
         preparationJob.start()
     }
 

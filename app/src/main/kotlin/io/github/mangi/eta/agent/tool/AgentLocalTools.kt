@@ -8,13 +8,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.SystemClock
 import android.view.Display
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
 import io.github.mangi.eta.agent.browser.AgentBrowserSession
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController
 import io.github.mangi.eta.agent.device.DeviceControlUnavailableException
-import io.github.mangi.eta.agent.device.RootAccess
-import io.github.mangi.eta.agent.device.RootShellDeviceController
-import io.github.mangi.eta.agent.device.BoundedRootCommandExecutor
 import io.github.mangi.eta.agent.model.AgentModelClient
 import io.github.mangi.eta.agent.model.AgentHttpClient
 import io.github.mangi.eta.agent.device.LocalNetworkPermission
@@ -30,8 +27,6 @@ import io.github.mangi.eta.agent.overlay.GestureIndicator
 import io.github.mangi.eta.agent.runtime.AgentAppContext
 import io.github.mangi.eta.agent.runtime.AgentRunCancelledException
 import io.github.mangi.eta.agent.runtime.GuiControlCoordinator
-import io.github.mangi.eta.agent.virtualdisplay.CanvasRoutingPolicy
-import io.github.mangi.eta.agent.virtualdisplay.VirtualDisplayController
 import io.github.mangi.eta.agent.skill.SkillCompatibilityChecker
 import io.github.mangi.eta.agent.skill.SkillIndexService
 import io.github.mangi.eta.agent.skill.SkillInstallErrorCode
@@ -54,7 +49,6 @@ import io.github.mangi.eta.agent.terminal.RootShellTerminalController
 import io.github.mangi.eta.agent.terminal.SharedFolderMounts
 import io.github.mangi.eta.config.Prefs
 import io.github.mangi.eta.core.AgentLogger
-import io.github.mangi.eta.core.HookSupport
 import io.github.mangi.eta.data.repository.AgentMemoryException
 import io.github.mangi.eta.data.repository.AgentMemoryMutation
 import io.github.mangi.eta.data.repository.AgentMemoryRepository
@@ -94,7 +88,7 @@ internal class AgentLocalTools(
     private val memoryWritable: Boolean = true,
     private val screenshotExcludedPackages: () -> Set<String> = { emptySet() },
     private val screenObservationProvider: (
-        (AgentScreenObservationContract.Options) -> RootShellDeviceController.Observation
+        (AgentScreenObservationContract.Options) -> AccessibilityDeviceController.Observation
     )? = null,
     private val beforeToolExecution: (String) -> ToolExecutionDecision = {
         ToolExecutionDecision.Allow
@@ -106,14 +100,9 @@ internal class AgentLocalTools(
     private val skillPackageInstaller: SkillPackageInstaller? = null,
     runAvailableSkillIds: Set<String> = emptySet(),
     pendingSkillConflict: PendingSkillConflictCapability? = null,
-    private val rootAvailable: () -> Boolean = { RootAccess.isGranted },
-    private val virtualDisplayEnabled: () -> Boolean = {
-        Prefs.isEnabled(Prefs.Keys.AGENT_VIRTUAL_DISPLAY_ENABLED)
-    },
     private val isToolEnabled: (String) -> Boolean = {
         Prefs.isToolEnabled(it)
     },
-    private val lsposedAvailable: () -> Boolean = { EtaApp.serviceInstance != null },
     private val guiControl: GuiControlCoordinator.RunControl? = null,
     private val imageBudgetProvider: () -> io.github.mangi.eta.agent.media.ModelImageBudget = {
         io.github.mangi.eta.agent.media.ModelImageBudget.DEFAULT
@@ -125,16 +114,13 @@ internal class AgentLocalTools(
     @Volatile
     private var activeDisplayId: Int = Display.DEFAULT_DISPLAY
     private val browserSessionRef = lazy { browserSession ?: AgentBrowserSession() }
-    private val deviceController = RootShellDeviceController(logger, screenshotExcludedPackages, rootAvailable)
-    private val rootCommandExecutor = BoundedRootCommandExecutor(logger, rootAvailable = rootAvailable)
+    private val deviceController = AccessibilityDeviceController(logger, screenshotExcludedPackages)
     private val structuredDeviceTools = AgentStructuredDeviceTools(
         context = context,
         logger = logger,
-        root = rootCommandExecutor,
-        rootAvailable = rootAvailable,
         foregroundAction = ::executeForegroundIntent,
     )
-    private val imageTools = AgentImageTools(context, rootCommandExecutor, rootAvailable, imageBudgetProvider)
+    private val imageTools = AgentImageTools(context, imageBudgetProvider)
     private val webTools = AgentWebTools(
         transport = WebHttpTransport(AgentHttpClient.client),
         localNetworkAccess = { LocalNetworkPermission.accessState(context).name.lowercase(Locale.ROOT) },
@@ -149,7 +135,6 @@ internal class AgentLocalTools(
     }
     private val terminalController = RootShellTerminalController(
         logger = logger,
-        rootAvailable = rootAvailable,
         executionContext = terminalExecutionContext,
         backgroundJobs = io.github.mangi.eta.agent.terminal.TerminalRuntime.backgroundJobs(context),
         detachedSupervisor = DetachedTaskSupervisor(
@@ -157,7 +142,6 @@ internal class AgentLocalTools(
             recordsFile = DetachedTaskSupervisor.defaultRecordsFile(context),
             linuxRootfsPath = terminalExecutionContext.linuxRootfsPath,
             linuxSharedMountsProvider = { SharedFolderMounts.current() },
-            rootAvailable = rootAvailable,
         ),
         linuxSharedMountsProvider = { SharedFolderMounts.current() },
     )
@@ -178,7 +162,6 @@ internal class AgentLocalTools(
         webTools.close()
         terminalController.interruptAll()
         deviceController.close()
-        rootCommandExecutor.close()
         githubSkillSource?.close()
         inspectedGitHubSnapshots.clear()
         guiControl?.close()
@@ -201,11 +184,6 @@ internal class AgentLocalTools(
         runCatching {
             if (closed.get()) throw AgentRunCancelledException()
             val args = JSONObject(toolCall.argumentsJson.ifBlank { "{}" })
-            if (AgentToolRequirements.find(toolCall.name) != null &&
-                AgentToolRequirements.rootDenied(toolCall.name, args, rootAvailable())
-            ) {
-                return@runCatching textResult(errorResult("ROOT_REQUIRED", "此操作需要 Root 授权，本次未执行"))
-            }
             if (!isToolEnabled(toolCall.name)) {
                 return@runCatching AgentModelClient.ToolResult(
                     content = errorResult("TOOL_DISABLED", "工具 ${toolCall.name} 已在工具列表中关闭，本次未执行"),
@@ -295,8 +273,7 @@ internal class AgentLocalTools(
                         ?: textResult(errorResult("UNKNOWN_TOOL", "未知设备工具"))
                 "read_image" -> fileVisionTool { imageTools.readImage(args) }
                 in AgentTerminalToolCatalog.names -> textResult(terminalTool {
-                    if (toolCall.name == "terminal" && args.optString("action").equals("check_root", ignoreCase = true)) checkRoot()
-                    else terminalController.executeTool(toolCall.name, args)
+                    terminalController.executeTool(toolCall.name, args)
                 })
                 in AgentFileToolCatalog.names -> textResult(terminalTool { terminalController.fileTool(toolCall.name, args) })
                 "memory_get" -> textResult(memoryGet(args))
@@ -321,7 +298,6 @@ internal class AgentLocalTools(
                     code = when (throwable) {
                         is InvalidToolArgumentException, is org.json.JSONException -> "INVALID_ARGUMENT"
                         is DeviceControlUnavailableException -> "ACCESSIBILITY_UNAVAILABLE"
-                        is ActiveDisplayUnavailableException -> "DISPLAY_UNAVAILABLE"
                         else -> "TOOL_ERROR"
                     },
                     message = throwable.message ?: throwable.javaClass.simpleName
@@ -484,17 +460,7 @@ internal class AgentLocalTools(
         )
     }
 
-    private fun currentActiveDisplayId(): Int {
-        val id = activeDisplayId
-        if (!CanvasRoutingPolicy.isVirtualDisplay(id)) return Display.DEFAULT_DISPLAY
-        val vd = VirtualDisplayController.snapshots.value
-        return if (vd.active && vd.displayId == id) {
-            id
-        } else {
-            publishedObservation.set(PublishedObservation())
-            throw ActiveDisplayUnavailableException()
-        }
-    }
+    private fun currentActiveDisplayId(): Int = Display.DEFAULT_DISPLAY
 
     private fun checkCancellation() {
         if (closed.get() || Thread.currentThread().isInterrupted) throw AgentRunCancelledException()
@@ -565,11 +531,11 @@ internal class AgentLocalTools(
             checkCancellation()
             if (throwable is AgentRunCancelledException) throw throwable
             logger.debug { "Agent local tool after-action observation failed: type=${throwable.javaClass.simpleName}" }
-            RootShellDeviceController.Observation(
+            AccessibilityDeviceController.Observation(
                 content = JSONObject()
                     .put("ok", false)
                     .put("ui_tree_status", "query_failed")
-                    .put("code", if (throwable is ActiveDisplayUnavailableException) "DISPLAY_UNAVAILABLE" else "OBSERVATION_FAILED")
+                    .put("code", "OBSERVATION_FAILED")
                     .put("ui_tree_note", "动作已执行，但后续观察失败；旧节点与坐标已失效，请先重新观察，不要重复动作")
                     .toString(),
                 image = null,
@@ -595,9 +561,7 @@ internal class AgentLocalTools(
             displayId = displayId,
         )
         return clearOverlay(displayId, point) {
-            if (!CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-                AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
-            }
+            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
             showTap(point.x, point.y, displayId)
             deviceController.tap(point.x, point.y, displayId)
         }
@@ -617,9 +581,7 @@ internal class AgentLocalTools(
             y = ((first.y.toLong() + second.y.toLong()) / 2L).toInt(),
         )
         return clearOverlay(displayId, point) {
-            if (!CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-                AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
-            }
+            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
             showTap(point.x, point.y, displayId)
             deviceController.tap(point.x, point.y, displayId)
         }
@@ -637,9 +599,7 @@ internal class AgentLocalTools(
             deviceController.tapElement(observation, index)
         }
         if (result.isOkJson()) {
-            if (!CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-                AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
-            }
+            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
             showTap(node.centerX, node.centerY, displayId)
         }
         return result
@@ -658,9 +618,7 @@ internal class AgentLocalTools(
             deviceController.longPressElement(observation, index, durationMs)
         }
         if (result.isOkJson()) {
-            if (!CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-                AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.LONG_PRESS)
-            }
+            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.LONG_PRESS)
             showLongPress(node.centerX, node.centerY, durationMs, displayId)
         }
         return result
@@ -676,9 +634,7 @@ internal class AgentLocalTools(
         )
         val durationMs = args.optInt("duration_ms", 800)
         return clearOverlay(displayId, point) {
-            if (!CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-                AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.LONG_PRESS)
-            }
+            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.LONG_PRESS)
             showLongPress(point.x, point.y, durationMs, displayId)
             deviceController.longPress(point.x, point.y, durationMs, displayId)
         }
@@ -700,9 +656,7 @@ internal class AgentLocalTools(
         )
         val durationMs = args.optInt("duration_ms", 500)
         return clearOverlay(displayId, start, end) {
-            if (!CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-                AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.SWIPE)
-            }
+            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.SWIPE)
             showSwipe(start.x, start.y, end.x, end.y, durationMs, displayId)
             deviceController.swipe(
                 start.x,
@@ -894,9 +848,6 @@ internal class AgentLocalTools(
     private fun launchApp(args: JSONObject): String {
         val packageName = args.optString("package_name").trim().ifBlank { null }
         val appName = args.optString("app_name").trim().ifBlank { null }
-        val requestedDisplay = CanvasRoutingPolicy.RequestedDisplay.parse(
-            args.optString("display", "auto"),
-        ) ?: return errorResult("INVALID_ARGUMENT", "display 仅支持 auto、virtual 或 main")
 
         val app = if (packageName != null) {
             findAppByPackage(packageName) ?: AppInfo(packageName = packageName, appName = appName ?: packageName)
@@ -932,53 +883,10 @@ internal class AgentLocalTools(
         }
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 
-        if (virtualDisplayEnabled() && requestedDisplay != CanvasRoutingPolicy.RequestedDisplay.MAIN && !rootAvailable()) {
-            io.github.mangi.eta.agent.device.RootAccess.awaitOrRetryIfPreviouslyGranted(context)
-        }
-        val mainForegroundPkg = AgentAccessibilityService.current()?.currentPackageName(Display.DEFAULT_DISPLAY)
-        val launchPlan = CanvasRoutingPolicy.decideLaunchPlan(
-            virtualDisplayEnabled = virtualDisplayEnabled(),
-            backendAvailable = VirtualDisplayController.isBackendAvailable(rootAvailable(), lsposedAvailable()),
-            requested = requestedDisplay,
-            targetPackage = app.packageName,
-            foregroundPackageOnMainDisplay = mainForegroundPkg,
-            ownPackage = context.packageName,
-        )
-
-        val launchedVirtualId = if (launchPlan.target == CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY) {
-            VirtualDisplayController.launchAppOnVirtualDisplay(
-                context = context,
-                packageName = app.packageName,
-                appName = app.appName,
-                launchIntent = launchIntent,
-                rootAvailable = rootAvailable,
-                checkCancellation = ::checkCancellation,
-            )
-        } else {
-            null
-        }
-
-        val finalDisplayId = if (launchedVirtualId != null && CanvasRoutingPolicy.isVirtualDisplay(launchedVirtualId)) {
-            activeDisplayId = launchedVirtualId
-            launchedVirtualId
-        } else {
-            checkCancellation()
-            activeDisplayId = Display.DEFAULT_DISPLAY
-            context.startActivity(launchIntent)
-            Display.DEFAULT_DISPLAY
-        }
-        val finalCanvas = if (CanvasRoutingPolicy.isVirtualDisplay(finalDisplayId)) {
-            CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY.wireName
-        } else {
-            CanvasRoutingPolicy.CanvasTarget.MAIN_DISPLAY.wireName
-        }
-        val canvasReason = if (finalCanvas == CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY.wireName) {
-            launchPlan.reason
-        } else if (launchPlan.target == CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY) {
-            "virtual_create_failed"
-        } else {
-            launchPlan.reason
-        }
+        checkCancellation()
+        activeDisplayId = Display.DEFAULT_DISPLAY
+        context.startActivity(launchIntent)
+        val finalDisplayId = Display.DEFAULT_DISPLAY
 
         val verification = AppLaunchVerification.awaitWindow(
             packageName = app.packageName,
@@ -999,17 +907,14 @@ internal class AgentLocalTools(
         )
         logger.info(
             "Agent local tool action=launch_app outcome=${verification.launchStatus} " +
-                "canvas=$finalCanvas reason=$canvasReason display=$finalDisplayId " +
-                "root=${io.github.mangi.eta.agent.device.RootAccess.state.value.status.name.lowercase()} " +
-                "lsposed=${lsposedAvailable()}",
+                "canvas=main display=$finalDisplayId",
         )
         return JSONObject()
             .put("ok", true)
             .put("tool", "launch_app")
             .put("app_name", app.appName)
             .put("package_name", app.packageName)
-            .put("canvas", finalCanvas)
-            .put("canvas_reason", canvasReason)
+            .put("canvas", "main")
             .put("display_id", finalDisplayId)
             .put("launch_status", verification.launchStatus)
             .put("window_observation", verification.toJson())
@@ -1022,25 +927,15 @@ internal class AgentLocalTools(
     }
 
     private fun presentToUser(args: JSONObject): String {
-        val context = requireContext()
         val reason = args.optString("reason").trim()
-        val vdSnapshot = VirtualDisplayController.snapshots.value
-        val wasVirtual = vdSnapshot.active || CanvasRoutingPolicy.isVirtualDisplay(activeDisplayId)
-        val presented = if (wasVirtual) {
-            VirtualDisplayController.handoffToMainDisplay(context, rootAvailable)
-        } else {
-            true
-        }
         activeDisplayId = Display.DEFAULT_DISPLAY
         return JSONObject()
             .put("ok", true)
             .put("tool", "present_to_user")
-            .put("canvas", CanvasRoutingPolicy.CanvasTarget.MAIN_DISPLAY.wireName)
+            .put("canvas", "main")
             .put("display_id", Display.DEFAULT_DISPLAY)
-            .put("presented", presented)
+            .put("presented", true)
             .apply {
-                if (vdSnapshot.appName.isNotBlank()) put("app_name", vdSnapshot.appName)
-                if (vdSnapshot.packageName.isNotBlank()) put("package_name", vdSnapshot.packageName)
                 if (reason.isNotBlank()) put("reason", reason)
             }
             .toString()
@@ -1058,83 +953,24 @@ internal class AgentLocalTools(
         val context = requireContext()
         val intent = Intent(Intent.ACTION_VIEW, uri)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (!HookSupport.resolvesActivity(context, intent)) {
+        if (context.packageManager.resolveActivity(intent, 0) == null) {
             return errorResult("NO_ACTIVITY", "没有应用可以处理该 URI")
         }
-        if (virtualDisplayEnabled() && !rootAvailable()) {
-            io.github.mangi.eta.agent.device.RootAccess.awaitOrRetryIfPreviouslyGranted(context)
-        }
-        val resolvedPkg = context.packageManager.resolveActivity(intent, 0)?.activityInfo?.packageName
-        val mainForegroundPkg = AgentAccessibilityService.current()?.currentPackageName(Display.DEFAULT_DISPLAY)
-        val launchPlan = CanvasRoutingPolicy.decideLaunchPlan(
-            virtualDisplayEnabled = virtualDisplayEnabled(),
-            backendAvailable = VirtualDisplayController.isBackendAvailable(rootAvailable(), lsposedAvailable()),
-            requested = CanvasRoutingPolicy.RequestedDisplay.AUTO,
-            targetPackage = resolvedPkg,
-            foregroundPackageOnMainDisplay = mainForegroundPkg,
-            ownPackage = context.packageName,
-        )
-        val virtualId = if (launchPlan.target == CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY) {
-            VirtualDisplayController.openUriOnVirtualDisplay(
-                context = context,
-                intent = intent,
-                targetLabel = uri.host ?: uri.scheme.orEmpty(),
-                rootAvailable = rootAvailable,
-                checkCancellation = ::checkCancellation,
-            )
-        } else {
-            null
-        }
-        val finalDisplayId = if (virtualId != null && CanvasRoutingPolicy.isVirtualDisplay(virtualId)) {
-            activeDisplayId = virtualId
-            virtualId
-        } else {
-            checkCancellation()
-            activeDisplayId = Display.DEFAULT_DISPLAY
-            context.startActivity(intent)
-            Display.DEFAULT_DISPLAY
-        }
-        val finalCanvas = if (CanvasRoutingPolicy.isVirtualDisplay(finalDisplayId)) {
-            CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY.wireName
-        } else {
-            CanvasRoutingPolicy.CanvasTarget.MAIN_DISPLAY.wireName
-        }
-        val canvasReason = if (finalCanvas == CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY.wireName) {
-            launchPlan.reason
-        } else if (launchPlan.target == CanvasRoutingPolicy.CanvasTarget.VIRTUAL_DISPLAY) {
-            "virtual_create_failed"
-        } else {
-            launchPlan.reason
-        }
-        logger.info("Agent local tool action=open_uri outcome=started canvas=$finalCanvas reason=$canvasReason")
+        checkCancellation()
+        activeDisplayId = Display.DEFAULT_DISPLAY
+        context.startActivity(intent)
+        logger.info("Agent local tool action=open_uri outcome=started canvas=main")
         return JSONObject()
             .put("ok", true)
             .put("tool", "open_uri")
             .put("scheme", uri.scheme?.lowercase(Locale.ROOT))
-            .put("canvas", finalCanvas)
-            .put("canvas_reason", canvasReason)
-            .put("display_id", finalDisplayId)
+            .put("canvas", "main")
+            .put("display_id", Display.DEFAULT_DISPLAY)
             .also { result ->
                 if (uri.scheme.equals("https", true)) {
                     result.put("display_uri", uriText)
                 }
             }
-            .toString()
-    }
-
-    private fun checkRoot(): String {
-        val probe = RootAccess.request(requireContext())
-        kotlinx.coroutines.runBlocking {
-            while (probe.isActive && !closed.get()) kotlinx.coroutines.delay(100)
-        }
-        if (closed.get()) return errorResult("CANCELLED", "已取消等待 Root 检测")
-        val state = RootAccess.state.value
-        return JSONObject().put("ok", true).put("tool", "terminal").put("action", "check_root")
-            .put("root_available", state.isGranted).put("status", state.status.name.lowercase(Locale.ROOT))
-            .put("checking", state.isChecking).put("su_present", state.suPresent)
-            .put("uid", if (state.isGranted) 0 else JSONObject.NULL)
-            .put("message", if (state.isGranted) "已确认 Root 授权；后续新命令默认使用 Root" else
-                "尚未确认 Root 授权；请根据 status 检查授权或检测结果，默认 user 不表示终端不支持 Root")
             .toString()
     }
 
@@ -1223,7 +1059,7 @@ internal class AgentLocalTools(
 
     private fun requireElementObservation(
         args: JSONObject,
-    ): RootShellDeviceController.ElementObservation? {
+    ): AccessibilityDeviceController.ElementObservation? {
         val current = publishedObservation.get().elements ?: return null
         val requestedId = args.optString("observation_id").trim()
         return current.takeIf {
@@ -1704,13 +1540,9 @@ internal class AgentLocalTools(
 
     private class InvalidToolArgumentException(message: String) : IllegalArgumentException(message)
 
-    private class ActiveDisplayUnavailableException : IllegalStateException(
-        "当前虚拟屏已关闭，旧观察已失效；请重新启动目标应用后再观察和操作",
-    )
-
     private data class PublishedObservation(
-        val elements: RootShellDeviceController.ElementObservation? = null,
-        val coordinateSpace: RootShellDeviceController.CoordinateSpace? = null,
+        val elements: AccessibilityDeviceController.ElementObservation? = null,
+        val coordinateSpace: AccessibilityDeviceController.CoordinateSpace? = null,
         val generation: Long? = null,
     )
 
@@ -1720,11 +1552,8 @@ internal class AgentLocalTools(
         val candidatesByPath: Map<String, String>,
     )
 
-    /** 手势经过状态胶囊时让它暂时穿透并淡出；在虚拟屏内操作时不干扰物理屏胶囊。 */
+    /** 手势经过状态胶囊时让它暂时穿透并淡出。 */
     private fun <T> clearOverlay(displayId: Int, vararg points: ScreenPoint, gesture: () -> T): T {
-        if (CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-            return gesture()
-        }
         val area = Rect(
             points.minOf { it.x },
             points.minOf { it.y },
@@ -1735,11 +1564,7 @@ internal class AgentLocalTools(
     }
 
     private fun showTap(x: Int, y: Int, displayId: Int = Display.DEFAULT_DISPLAY) {
-        if (CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-            VirtualDisplayController.emitTapEffect(x, y, longPress = false)
-        } else {
-            GestureIndicator.showTap(context, x, y)
-        }
+        GestureIndicator.showTap(context, x, y)
     }
 
     private fun showLongPress(
@@ -1748,11 +1573,7 @@ internal class AgentLocalTools(
         durationMs: Int,
         displayId: Int = Display.DEFAULT_DISPLAY,
     ) {
-        if (CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-            VirtualDisplayController.emitTapEffect(x, y, longPress = true)
-        } else {
-            GestureIndicator.showLongPress(context, x, y, durationMs)
-        }
+        GestureIndicator.showLongPress(context, x, y, durationMs)
     }
 
     private fun showSwipe(
@@ -1763,11 +1584,7 @@ internal class AgentLocalTools(
         durationMs: Int,
         displayId: Int = Display.DEFAULT_DISPLAY,
     ) {
-        if (CanvasRoutingPolicy.isVirtualDisplay(displayId)) {
-            VirtualDisplayController.emitSwipeEffect(x1, y1, x2, y2, durationMs)
-        } else {
-            GestureIndicator.showSwipe(context, x1, y1, x2, y2, durationMs)
-        }
+        GestureIndicator.showSwipe(context, x1, y1, x2, y2, durationMs)
     }
 
     private data class AppInfo(
@@ -1777,56 +1594,29 @@ internal class AgentLocalTools(
     )
 
     private companion object {
-        val DEVICE_DIRECT_TOOL_NAMES = io.github.mangi.eta.agent.model.AgentPhoneToolCatalog.direct + setOf(
+        val DEVICE_DIRECT_TOOL_NAMES = setOf(
+            "get_flashlight",
+            "set_flashlight",
+            "get_display_state",
+            "get_sound_state",
+            "set_do_not_disturb",
+            "set_volume",
             "set_alarm",
             "set_timer",
-            "device_status",
             "inspect_app",
+            "device_status",
             "network_info",
-            "top_memory_apps",
-            "top_storage_apps",
             "media_control",
-            "set_volume",
         )
-        val DEVICE_SENSITIVE_READ_TOOL_NAMES = io.github.mangi.eta.agent.context.PersonalSearchTools.names + io.github.mangi.eta.agent.model.AgentPhoneToolCatalog.reads + setOf(
-            "search_notes", "search_system_memories",
-            "get_setting",
-            "wifi_credentials",
+        val DEVICE_SENSITIVE_READ_TOOL_NAMES = setOf(
             "recent_notifications",
             "search_notification_history",
             "recent_app_activity",
             "app_usage_summary",
             "get_current_location",
             "get_device_environment",
-            "list_alarms",
-            "list_active_timers",
-            "search_clipboard_history",
-            "get_health_summary",
-            "read_sms_code",
-            "get_logcat",
-            "search_media",
-            "search_audio",
-            "search_recordings",
-            "search_files",
-            "search_calendar_events",
-            "search_contacts",
-            "search_call_history",
-            "search_messages",
-            "search_downloads",
-            "search_coloros_notes",
-            "search_coloros_recordings",
-            "search_recording_summaries",
-            "search_coloros_memories",
-            "search_saved_places",
-            "search_personal_orders",
-            "search_qq_chat_images",
-            "search_wechat_chat_images",
         )
-        val DEVICE_SENSITIVE_ACTION_TOOL_NAMES = io.github.mangi.eta.agent.model.AgentPhoneToolCatalog.writes + setOf(
-            "set_setting",
-            "set_device_state",
-            "app_state_control",
-        )
+        val DEVICE_SENSITIVE_ACTION_TOOL_NAMES = emptySet<String>()
         val DEVICE_TOOL_NAMES =
             DEVICE_DIRECT_TOOL_NAMES + DEVICE_SENSITIVE_READ_TOOL_NAMES +
                 DEVICE_SENSITIVE_ACTION_TOOL_NAMES

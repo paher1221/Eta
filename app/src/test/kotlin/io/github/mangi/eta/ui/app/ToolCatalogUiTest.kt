@@ -8,7 +8,6 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.TravelExplore
 import io.github.mangi.eta.agent.model.AgentToolCatalog
 import io.github.mangi.eta.agent.tool.AgentToolCapabilities
-import io.github.mangi.eta.agent.tool.RootRequirement
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.overlay.toolDisplayNameResource
 import io.github.mangi.eta.config.Prefs
@@ -39,7 +38,7 @@ class ToolCatalogUiTest {
             skillGitHubDiscovery = true,
             skillGitHubInstall = true,
             memoryTools = true,
-            capabilities = AgentToolCapabilities(rootAvailable = true, lsposedAvailable = true),
+            capabilities = AgentToolCapabilities(rootAvailable = true),
         )
         val runtimeNames = (0 until tools.length()).map {
             tools.getJSONObject(it).getJSONObject("function").getString("name")
@@ -82,13 +81,12 @@ class ToolCatalogUiTest {
     @Test
     fun personalQueriesAndNativeOperationsHaveSeparateGroups() {
         val group = buildToolsState(RuntimeEnvironment.getApplication()).groups.first { it.id == "personal_data" }
-        assertTrue(group.tools.any { it.id == "search_bills" })
+        assertTrue(group.tools.any { it.id == "recent_notifications" })
         assertTrue(group.tools.none { it.id == "personal_context" || it.id == "create_note" })
         val operations = buildToolsState(RuntimeEnvironment.getApplication()).groups.first { it.id == "device_direct" }
         assertTrue(operations.tools.any { it.id == "set_flashlight" })
         assertTrue(operations.tools.any { it.id == "create_calendar_event" })
-        assertEquals(RootRequirement.REQUIRED, toolCardRequirement("search_bills").rootRequirement)
-        assertTrue(toolCardRequirement("search_bills").colorOs)
+        requireNotNull(toolCardRequirement("recent_notifications"))
     }
 
     @Test
@@ -97,15 +95,8 @@ class ToolCatalogUiTest {
         val allCards = groups.flatMap { it.tools }
         allCards.forEach { toolCardRequirement(it.id) }
         assertEquals(allCards.size, allCards.map { it.id }.distinct().size)
-        assertEquals(groups, projectToolGroups(groups, true, false, false))
-        assertEquals(groups, projectToolGroups(groups, false, true, true))
-
-        val ordinaryCards = projectToolGroups(groups, false, false, false).flatMap { it.tools }
-        assertTrue(ordinaryCards.isNotEmpty())
-        assertEquals(allCards.filter { card ->
-            val requirement = toolCardRequirement(card.id)
-            requirement.rootRequirement != RootRequirement.REQUIRED && !requirement.colorOs
-        }, ordinaryCards)
+        assertEquals(groups, projectToolGroups(groups, true))
+        assertEquals(groups, projectToolGroups(groups, false))
     }
 
     @Test
@@ -124,7 +115,7 @@ class ToolCatalogUiTest {
             deviceDirectTools = true,
             deviceSensitiveReadTools = true,
             deviceSensitiveActionTools = true,
-            capabilities = AgentToolCapabilities(rootAvailable = true, lsposedAvailable = true),
+            capabilities = AgentToolCapabilities(rootAvailable = true),
             disabledTools = Prefs.disabledTools(),
         )
         val names = (0 until tools.length()).map {

@@ -97,7 +97,6 @@ import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.ui.markdown.MarkdownTone
 import io.github.mangi.eta.ui.markdown.StaticMarkdown
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.virtualdisplay.VirtualDisplaySnapshot
 import io.github.mangi.eta.data.model.AppearanceUiStyle
 import io.github.mangi.eta.ui.app.LocalUiStyle
 import io.github.mangi.eta.ui.components.coui.CouiButton
@@ -151,14 +150,7 @@ internal data class ScreenCornerRadii(val topLeft: Float, val topRight: Float, v
 internal fun AgentOverlayGlow(
     state: AgentOverlayState,
     corners: ScreenCornerRadii,
-    virtualDisplay: VirtualDisplaySnapshot = VirtualDisplaySnapshot.Inactive,
 ) {
-    if (virtualDisplay.materializingToMain) {
-        VirtualDisplayMaterializeOverlay(snapshot = virtualDisplay, corners = corners)
-        return
-    }
-    // 后台虚拟屏激活时，物理屏幕属于用户，不绘制四边流光。
-    if (virtualDisplay.active) return
     val phase = state.phase
     if (phase != AgentOverlayPhase.RUNNING && phase != AgentOverlayPhase.PAUSED) return
     val running = phase == AgentOverlayPhase.RUNNING
@@ -334,8 +326,6 @@ internal fun AgentResultCard(
     state: AgentOverlayState,
     onClose: () -> Unit,
     onOpenEta: () -> Unit,
-    hasVirtualDisplayApp: Boolean = false,
-    onOpenVirtualApp: (() -> Unit)? = null,
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -503,8 +493,6 @@ internal fun AgentResultCard(
                     content = content,
                     onOpenEta = onOpenEta,
                     onDone = ::close,
-                    hasVirtualDisplayApp = hasVirtualDisplayApp,
-                    onOpenVirtualApp = onOpenVirtualApp,
                 )
             }
         }
@@ -516,8 +504,6 @@ private fun ResultCardActions(
     content: String,
     onOpenEta: () -> Unit,
     onDone: () -> Unit,
-    hasVirtualDisplayApp: Boolean = false,
-    onOpenVirtualApp: (() -> Unit)? = null,
 ) {
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
@@ -582,12 +568,8 @@ private fun ResultCardActions(
             }
         }
         val doneText = stringResource(R.string.overlay_result_done)
-        val primaryText = if (hasVirtualDisplayApp && onOpenVirtualApp != null) {
-            stringResource(R.string.overlay_result_open_virtual_app)
-        } else {
-            stringResource(R.string.overlay_result_open_eta)
-        }
-        val onPrimary = if (hasVirtualDisplayApp && onOpenVirtualApp != null) onOpenVirtualApp else onOpenEta
+        val primaryText = stringResource(R.string.overlay_result_open_eta)
+        val onPrimary = onOpenEta
         if (isCoui) {
             CouiButton(
                 text = doneText,

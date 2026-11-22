@@ -34,19 +34,14 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.SportsBar
 import androidx.compose.material.icons.rounded.SupportAgent
-import androidx.compose.material.icons.rounded.SwipeUp
 import androidx.compose.material.icons.rounded.SystemUpdate
-import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -66,14 +61,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.mangi.eta.BuildConfig
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.accessibility.AccessibilityProtectionClient
 import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
 import io.github.mangi.eta.agent.voice.AssistantRoleHelper
 import io.github.mangi.eta.agent.voice.AssistantRoleStatus
-import io.github.mangi.eta.agent.voice.DefaultAssistantOwner
-import io.github.mangi.eta.config.PowerAssistantTarget
 import io.github.mangi.eta.config.Prefs
 import io.github.mangi.eta.core.ModuleConfig
 import io.github.mangi.eta.data.model.AppearanceUiStyle
@@ -86,7 +77,6 @@ import io.github.mangi.eta.data.repository.ProviderRepository
 import io.github.mangi.eta.data.repository.RuntimeConfigRepository
 import io.github.mangi.eta.data.update.AppLatestRelease
 import io.github.mangi.eta.data.update.AppUpdateChecker
-import io.github.mangi.eta.ui.app.EnhancementSettingsHistory
 import io.github.mangi.eta.ui.app.LocalUiStyle
 import io.github.mangi.eta.ui.components.LanguagePreference
 import io.github.mangi.eta.ui.components.MiuixDialogActions
@@ -165,7 +155,6 @@ private fun SettingsIcon(
 private data class SettingsSystemStatus(
     val overlayGranted: Boolean = false,
     val accessibilityGranted: Boolean = false,
-    val accessibilityProtectionEnabled: Boolean = false,
     val assistantRoleStatus: AssistantRoleStatus = AssistantRoleStatus(isDefaultAssistant = false),
 )
 
@@ -175,8 +164,7 @@ private var cachedSettingsSystemStatus: SettingsSystemStatus? = null
 /**
  * 模块配置界面。
  *
- * 开关默认值由 [Prefs.Keys.BOOLEAN_DEFAULTS] 统一定义。Eta Runtime 自己消费的开关写入
- * App 本地配置；仅 Hook 消费的开关通过 RemotePreferences 提交到 LSPosed。
+ * 开关默认值由 [Prefs.Keys.BOOLEAN_DEFAULTS] 统一定义，写入 App 本地配置。
  */
 @Composable
 internal fun SettingsScreen(
@@ -194,8 +182,6 @@ private fun SettingsPageContent(
     onBack: () -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val enhancementHistory = remember(context.applicationContext) { EnhancementSettingsHistory(context) }
-    var hasConnectedFramework by remember { mutableStateOf(enhancementHistory.hasConnected) }
 
     // 悬浮窗与无障碍状态走异步查询，避免首帧进入设置页时在主线程触发同步 Binder IPC。
     var systemStatus by remember {
@@ -203,9 +189,7 @@ private fun SettingsPageContent(
     }
     val overlayGranted = systemStatus.overlayGranted
     val accessibilityGranted = systemStatus.accessibilityGranted
-    val accessibilityProtectionEnabled = systemStatus.accessibilityProtectionEnabled
     val assistantRoleStatus = systemStatus.assistantRoleStatus
-    var accessibilityProtectionPending by remember { mutableStateOf(false) }
 
     // 关于组：版本信息与更新检查。结果对话框在列表外渲染，状态需要页面级 owner。
     val appVersionName = BuildConfig.VERSION_NAME
@@ -262,11 +246,6 @@ private fun SettingsPageContent(
         "$providerDisplayName / ${selectedModel?.displayName ?: stringResource(R.string.settings_model_not_selected)}"
     } ?: stringResource(R.string.settings_not_configured)
 
-    // prefs 绑定到 XposedService：service 到达时切换到 RemotePreferences（跨进程提交到
-    // LSPosed 数据库）；未就绪时保持 null，UI 禁止修改。
-    var prefs by remember {
-        mutableStateOf(Prefs.cachedRemotePreferencesForUi(EtaApp.serviceInstance))
-    }
     val agentPrefs = remember { Prefs.localAgentPreferences() }
     val pickerState = remember(providers, selectedProviderId, selectedModelId) {
         AgentModelPickerProjector.project(providers, selectedProviderId, selectedModelId)
@@ -298,7 +277,7 @@ private fun SettingsPageContent(
     var defaultThinkingEnabled by remember(agentPrefs) {
         mutableStateOf(
             agentPrefs?.getBoolean(defaultThinkingKey, defaultThinkingFallback)
-                ?: enhancementHistory.checked(defaultThinkingKey, defaultThinkingFallback),
+                ?: defaultThinkingFallback,
         )
     }
     var savedDefaultEffort by remember(agentPrefs) {
@@ -343,9 +322,6 @@ private fun SettingsPageContent(
     val defaultEffortTitle = stringResource(R.string.settings_default_reasoning_effort)
     val defaultEffortUnsupported = stringResource(R.string.conversation_title_settings_reasoning_unsupported)
     val defaultEffortEnabled = agentPrefs != null && defaultThinkingEnabled && effortOptions.size > 1
-    var powerAssistantTarget by remember(prefs) {
-        mutableStateOf(prefs?.let(Prefs::powerAssistantTarget) ?: enhancementHistory.powerTarget())
-    }
     var assistantRefreshJob by remember { mutableStateOf<Job?>(null) }
     val scheduleAssistantRoleRefresh: () -> Unit = {
         assistantRefreshJob?.cancel()
@@ -394,182 +370,41 @@ private fun SettingsPageContent(
             }
         }
     }
-    val syncPowerTargetAfterManualAssistantChange: (AssistantRoleStatus) -> Unit = { updated ->
-        val targetPrefs = prefs
-        val autoConfigDefault = Prefs.Keys.BOOLEAN_DEFAULTS.getValue(Prefs.Keys.ASSISTANT_AUTO_CONFIG)
-        if (targetPrefs != null &&
-            targetPrefs.getBoolean(Prefs.Keys.ASSISTANT_AUTO_CONFIG, autoConfigDefault)
-        ) {
-            val mappedTarget = when (updated.owner) {
-                DefaultAssistantOwner.ETA -> PowerAssistantTarget.ETA
-                DefaultAssistantOwner.GEMINI -> PowerAssistantTarget.GEMINI
-                DefaultAssistantOwner.OTHER,
-                DefaultAssistantOwner.NONE -> PowerAssistantTarget.OEM
-            }
-            if (powerAssistantTarget != mappedTarget &&
-                putStringSync(
-                    prefs = targetPrefs,
-                    key = Prefs.Keys.POWER_KEY_ASSISTANT_TARGET,
-                    value = mappedTarget.persistedValue,
-                )
-            ) {
-                powerAssistantTarget = mappedTarget
-                enhancementHistory.recordCommittedTarget(mappedTarget)
-            }
-        }
-    }
-    var ownerBeforeAssistantSettings by remember { mutableStateOf<DefaultAssistantOwner?>(null) }
     val openAssistantSettings: () -> Unit = {
         val currentStatus = AssistantRoleHelper.queryStatus(context)
         val next = systemStatus.copy(assistantRoleStatus = currentStatus)
         cachedSettingsSystemStatus = next
         systemStatus = next
-        if (AssistantRoleHelper.openSystemSettings(context)) {
-            ownerBeforeAssistantSettings = currentStatus.owner
-        } else {
+        if (!AssistantRoleHelper.openSystemSettings(context)) {
             Toast.makeText(context, context.getString(R.string.settings_open_assistant_failed), Toast.LENGTH_SHORT).show()
         }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val refreshSystemStatuses: (Boolean) -> Unit = { checkAssistantTransition ->
+    val refreshSystemStatuses: () -> Unit = {
         coroutineScope.launch {
             val snapshot = withContext(Dispatchers.IO) {
                 SettingsSystemStatus(
                     overlayGranted = android.provider.Settings.canDrawOverlays(context),
                     accessibilityGranted = isAgentAccessibilityEnabled(context),
-                    accessibilityProtectionEnabled = AccessibilityProtectionClient.isEnabled(context),
                     assistantRoleStatus = AssistantRoleHelper.queryStatus(context),
                 )
             }
             cachedSettingsSystemStatus = snapshot
             systemStatus = snapshot
-            if (checkAssistantTransition) {
-                val previousOwner = ownerBeforeAssistantSettings
-                if (previousOwner != null) {
-                    ownerBeforeAssistantSettings = null
-                    if (snapshot.assistantRoleStatus.owner != previousOwner) {
-                        syncPowerTargetAfterManualAssistantChange(snapshot.assistantRoleStatus)
-                    }
-                }
-            }
         }
     }
     LaunchedEffect(Unit) {
-        refreshSystemStatuses(false)
+        refreshSystemStatuses()
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                refreshSystemStatuses(true)
+                refreshSystemStatuses()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    DisposableEffect(prefs) {
-        val targetPrefs = prefs ?: return@DisposableEffect onDispose {}
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { changedPrefs, key ->
-            when (key) {
-                Prefs.Keys.POWER_KEY_ASSISTANT_TARGET,
-                Prefs.Keys.POWER_KEY_TAKEOVER -> {
-                    powerAssistantTarget = Prefs.powerAssistantTarget(changedPrefs)
-                    scheduleAssistantRoleRefresh()
-                }
-                Prefs.Keys.ASSISTANT_AUTO_CONFIG -> {
-                    scheduleAssistantRoleRefresh()
-                }
-            }
-        }
-        targetPrefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { targetPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
-    DisposableEffect(Unit) {
-        var lastService = EtaApp.serviceInstance
-        val initialCached = Prefs.cachedRemotePreferencesForUi(lastService)
-        if (initialCached != null) {
-            prefs = initialCached
-            hasConnectedFramework = true
-        }
-        val listener = object : EtaApp.ServiceStateListener {
-            override fun onServiceStateChanged(service: io.github.libxposed.service.XposedService?) {
-                if (service === lastService && prefs != null) return
-                lastService = service
-                coroutineScope.launch {
-                    val resolvedPrefs = withContext(Dispatchers.IO) {
-                        Prefs.remotePreferencesForUi(service).also { connected ->
-                            if (connected != null) {
-                                enhancementHistory.captureConnected(connected)
-                            }
-                            Prefs.reconcileAgentPreferences(service)
-                            RuntimeConfigRepository.ensureDefaults(service)
-                        }
-                    }
-                    prefs = resolvedPrefs
-                    if (resolvedPrefs != null) {
-                        hasConnectedFramework = true
-                    }
-                }
-            }
-        }
-        EtaApp.addServiceStateListener(listener, notifyImmediately = initialCached == null)
-        onDispose { EtaApp.removeServiceStateListener(listener) }
-    }
-    val powerAssistantTargets = PowerAssistantTarget.entries
-    val powerAssistantItems = powerAssistantTargets.map { target -> target.displayName() }
-    val onPowerTargetSelect: (Int) -> Unit = { index ->
-        val target = powerAssistantTargets.getOrNull(index)
-        val targetPrefs = prefs
-        if (target != null && targetPrefs != null) {
-            if (putStringSync(
-                    prefs = targetPrefs,
-                    key = Prefs.Keys.POWER_KEY_ASSISTANT_TARGET,
-                    value = target.persistedValue,
-                )
-            ) {
-                powerAssistantTarget = target
-                enhancementHistory.recordCommittedTarget(target)
-                scheduleAssistantRoleRefresh()
-            } else {
-                Toast.makeText(
-                    context.applicationContext,
-                    context.getString(R.string.settings_write_failed),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }
-        }
-    }
-    val onAccessibilityProtectionToggle: (Boolean) -> Unit = { enabled ->
-        if (!accessibilityProtectionPending) {
-            accessibilityProtectionPending = true
-            AccessibilityProtectionClient.setEnabled(
-                context = context,
-                enabled = enabled,
-            ) { result ->
-                accessibilityProtectionPending = false
-                val updated = systemStatus.copy(
-                    accessibilityProtectionEnabled = result.enabled,
-                    accessibilityGranted = isAgentAccessibilityEnabled(context),
-                )
-                cachedSettingsSystemStatus = updated
-                systemStatus = updated
-                val failureMessage = when (result.status) {
-                    AccessibilityProtectionClient.ControlStatus.APPLIED -> null
-                    AccessibilityProtectionClient.ControlStatus.UNAVAILABLE ->
-                        context.getString(R.string.accessibility_protection_unavailable)
-                    AccessibilityProtectionClient.ControlStatus.REJECTED ->
-                        context.getString(R.string.accessibility_protection_rejected)
-                }
-                if (failureMessage != null) {
-                    Toast.makeText(
-                        context.applicationContext,
-                        failureMessage,
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
-            }
-        }
-    }
-
     when (LocalUiStyle.current) {
         AppearanceUiStyle.COUI -> {
             val pageColors = CouiPageDefaults.themeColors()
@@ -775,16 +610,6 @@ private fun SettingsPageContent(
                         )
                     }
                     item {
-                        SwitchPref(
-                            context = context,
-                            prefs = agentPrefs,
-                            title = stringResource(R.string.settings_virtual_display_title),
-                            key = Prefs.Keys.AGENT_VIRTUAL_DISPLAY_ENABLED,
-                            icon = Icons.Rounded.Layers,
-                            iconTint = SettingsIconColors.Blue,
-                        )
-                    }
-                    item {
                         CouiPreference(
                             title = stringResource(R.string.ui_linux_tool_environment_314d22),
                             icon = {
@@ -794,16 +619,6 @@ private fun SettingsPageContent(
                                 )
                             },
                             onClick = { onNavigate(AppRoute.LinuxEnvironment) },
-                        )
-                    }
-                }
-
-                CouiPreferenceGroup {
-                    item {
-                        CouiPreference(
-                            title = stringResource(R.string.capability_enhancements),
-                            icon = { CouiSettingsIcon(Icons.Rounded.Security, SettingsIconColors.Blue) },
-                            onClick = { onNavigate(AppRoute.SystemEnhance) },
                         )
                     }
                 }
@@ -838,59 +653,6 @@ private fun SettingsPageContent(
                             },
                             onClick = { onNavigate(AppRoute.AssistantOverlaySettings) },
                         )
-                    }
-                    if (prefs != null || hasConnectedFramework) {
-                        item {
-                            CouiDropdownPreference(
-                                title = stringResource(R.string.ui_long_press_the_power_button_1958d0),
-                                items = powerAssistantItems,
-                                selectedIndex = powerAssistantTargets.indexOf(powerAssistantTarget),
-                                onSelectedIndexChange = onPowerTargetSelect,
-                                icon = {
-                                    CouiSettingsIcon(
-                                        icon = Icons.Rounded.PowerSettingsNew,
-                                        tint = SettingsIconColors.Yellow,
-                                        enabled = prefs != null,
-                                    )
-                                },
-                                enabled = prefs != null,
-                            )
-                        }
-                        item {
-                            SwitchPref(
-                                context = context,
-                                prefs = prefs,
-                                title = stringResource(R.string.ui_automatically_set_default_assistant_f86963),
-                                key = Prefs.Keys.ASSISTANT_AUTO_CONFIG,
-                                icon = Icons.Rounded.Settings,
-                                iconTint = SettingsIconColors.Green,
-                            )
-                        }
-                    }
-                }
-
-                if (prefs != null || hasConnectedFramework) {
-                    CouiPreferenceGroup(title = stringResource(R.string.ui_search_in_one_turn_179584)) {
-                        item {
-                            SwitchPref(
-                                context = context,
-                                prefs = prefs,
-                                title = stringResource(R.string.ui_long_press_on_the_gesture_bar_triggers_a_circle_to_s_b80117),
-                                key = Prefs.Keys.GESTURE_BAR_CIRCLE_TO_SEARCH,
-                                icon = Icons.Rounded.SwipeUp,
-                                iconTint = SettingsIconColors.Blue,
-                            )
-                        }
-                        item {
-                            SwitchPref(
-                                context = context,
-                                prefs = prefs,
-                                title = stringResource(R.string.ui_long_press_with_two_fingers_to_trigger_a_circle_sear_ab597a),
-                                key = Prefs.Keys.DOUBLE_FINGER_CIRCLE_TO_SEARCH,
-                                icon = Icons.Rounded.TouchApp,
-                                iconTint = SettingsIconColors.Blue,
-                            )
-                        }
                     }
                 }
 
@@ -984,23 +746,6 @@ private fun SettingsPageContent(
                                 }
                             },
                         )
-                    }
-                    if (prefs != null || hasConnectedFramework) {
-                        item {
-                            CouiSwitchPreference(
-                                title = stringResource(R.string.ui_enforce_accessibility_55e838),
-                                checked = accessibilityProtectionEnabled,
-                                onCheckedChange = onAccessibilityProtectionToggle,
-                                icon = {
-                                    CouiSettingsIcon(
-                                        icon = Icons.Rounded.VerifiedUser,
-                                        tint = SettingsIconColors.Blue,
-                                        enabled = prefs != null && !accessibilityProtectionPending,
-                                    )
-                                },
-                                enabled = prefs != null && !accessibilityProtectionPending,
-                            )
-                        }
                     }
                 }
 
@@ -1104,7 +849,6 @@ private fun SettingsPageContent(
                             title = stringResource(R.string.ui_deep_thinking_enabled_by_default_c032d6),
                             key = Prefs.Keys.AGENT_THINKING_ENABLED,
                             icon = Icons.Rounded.Psychology,
-                            history = enhancementHistory,
                         )
                         if (effortOptions.size > 1) {
                             GlassDropdownPreference(
@@ -1148,7 +892,6 @@ private fun SettingsPageContent(
                             title = stringResource(R.string.settings_auto_compaction),
                             key = Prefs.Keys.AGENT_AUTO_COMPACTION_ENABLED,
                             icon = Icons.Rounded.Layers,
-                            history = enhancementHistory,
                         )
                         ArrowPreference(
                             title = stringResource(R.string.conversation_title_settings_title),
@@ -1215,28 +958,10 @@ private fun SettingsPageContent(
                             startAction = { SettingsIcon(Icons.Rounded.Image) },
                             onClick = { onNavigate(AppRoute.ImageGenSettings) },
                         )
-                        SwitchPref(
-                            context = context,
-                            prefs = agentPrefs,
-                            title = stringResource(R.string.settings_virtual_display_title),
-                            key = Prefs.Keys.AGENT_VIRTUAL_DISPLAY_ENABLED,
-                            icon = Icons.Rounded.Layers,
-                            history = enhancementHistory,
-                        )
                         ArrowPreference(
                             title = stringResource(R.string.ui_linux_tool_environment_314d22),
                             startAction = { SettingsIcon(Icons.Rounded.Inventory2) },
                             onClick = { onNavigate(AppRoute.LinuxEnvironment) },
-                        )
-                    }
-                }
-
-                item(key = "system_enhancements") {
-                    SettingsGroupCard {
-                        ArrowPreference(
-                            title = stringResource(R.string.capability_enhancements),
-                            startAction = { SettingsIcon(Icons.Rounded.Security) },
-                            onClick = { onNavigate(AppRoute.SystemEnhance) },
                         )
                     }
                 }
@@ -1267,53 +992,6 @@ private fun SettingsPageContent(
                             startAction = { SettingsIcon(Icons.Rounded.ChatBubble) },
                             onClick = { onNavigate(AppRoute.AssistantOverlaySettings) },
                         )
-                        if (prefs != null || hasConnectedFramework) {
-                            GlassDropdownPreference(
-                                title = stringResource(R.string.ui_long_press_the_power_button_1958d0),
-                                items = powerAssistantItems,
-                                selectedIndex = powerAssistantTargets.indexOf(powerAssistantTarget),
-                                backdrop = currentGlassOverlayBackdrop(),
-                                onSelectedIndexChange = onPowerTargetSelect,
-                                startAction = {
-                                    SettingsIcon(
-                                        icon = Icons.Rounded.PowerSettingsNew,
-                                        enabled = prefs != null,
-                                    )
-                                },
-                                enabled = prefs != null,
-                            )
-                            SwitchPref(
-                                context = context,
-                                prefs = prefs,
-                                title = stringResource(R.string.ui_automatically_set_default_assistant_f86963),
-                                key = Prefs.Keys.ASSISTANT_AUTO_CONFIG,
-                                icon = Icons.Rounded.Settings,
-                            )
-                        }
-                    }
-                }
-
-                if (prefs != null || hasConnectedFramework) {
-                    item(key = "section_circle_to_search_title") {
-                        SmallTitle(stringResource(R.string.ui_search_in_one_turn_179584))
-                    }
-                    item(key = "section_circle_to_search") {
-                        SettingsGroupCard {
-                            SwitchPref(
-                                context = context,
-                                prefs = prefs,
-                                title = stringResource(R.string.ui_long_press_on_the_gesture_bar_triggers_a_circle_to_s_b80117),
-                                key = Prefs.Keys.GESTURE_BAR_CIRCLE_TO_SEARCH,
-                                icon = Icons.Rounded.SwipeUp,
-                            )
-                            SwitchPref(
-                                context = context,
-                                prefs = prefs,
-                                title = stringResource(R.string.ui_long_press_with_two_fingers_to_trigger_a_circle_sear_ab597a),
-                                key = Prefs.Keys.DOUBLE_FINGER_CIRCLE_TO_SEARCH,
-                                icon = Icons.Rounded.TouchApp,
-                            )
-                        }
                     }
                 }
 
@@ -1328,7 +1006,6 @@ private fun SettingsPageContent(
                             title = stringResource(R.string.settings_keep_screen_on),
                             key = Prefs.Keys.AGENT_KEEP_SCREEN_ON_ENABLED,
                             icon = Icons.Rounded.BrightnessHigh,
-                            history = enhancementHistory,
                         )
                         ArrowPreference(
                             title = stringResource(R.string.appearance_title),
@@ -1410,20 +1087,6 @@ private fun SettingsPageContent(
                                 }
                             },
                         )
-                        if (prefs != null || hasConnectedFramework) {
-                            SwitchPreference(
-                                title = stringResource(R.string.ui_enforce_accessibility_55e838),
-                                checked = accessibilityProtectionEnabled,
-                                onCheckedChange = onAccessibilityProtectionToggle,
-                                startAction = {
-                                    SettingsIcon(
-                                        icon = Icons.Rounded.VerifiedUser,
-                                        enabled = prefs != null && !accessibilityProtectionPending,
-                                    )
-                                },
-                                enabled = prefs != null && !accessibilityProtectionPending,
-                            )
-                        }
                     }
                 }
 
@@ -1488,14 +1151,11 @@ private fun SwitchPref(
     key: String,
     icon: ImageVector,
     iconTint: Color = Color.Unspecified,
-    history: EnhancementSettingsHistory = remember(context.applicationContext) {
-        EnhancementSettingsHistory(context)
-    },
 ) {
     val enabled = prefs != null
     val default = Prefs.Keys.BOOLEAN_DEFAULTS[key] ?: true
     var checked by remember(prefs, key) {
-        mutableStateOf(prefs?.getBoolean(key, default) ?: history.checked(key, default))
+        mutableStateOf(prefs?.getBoolean(key, default) ?: default)
     }
     DisposableEffect(prefs, key) {
         val targetPrefs = prefs ?: return@DisposableEffect onDispose {}
@@ -1512,10 +1172,6 @@ private fun SwitchPref(
         if (targetPrefs != null) {
             if (putBooleanSync(targetPrefs, key, value)) {
                 checked = value
-                history.recordCommittedBoolean(key, value)
-                if (key in Prefs.Keys.LOCAL_AGENT_KEYS) {
-                    Prefs.reconcileAgentPreferences(EtaApp.serviceInstance)
-                }
             } else {
                 Toast.makeText(
                     context.applicationContext,
@@ -1566,13 +1222,6 @@ private fun putStringSync(
 ): Boolean =
     runCatching { prefs.edit().putString(key, value).commit() }.getOrDefault(false)
 
-@Composable
-private fun PowerAssistantTarget.displayName(): String =
-    when (this) {
-        PowerAssistantTarget.OEM -> stringResource(R.string.power_assistant_system_default)
-        PowerAssistantTarget.GEMINI -> "Gemini"
-        PowerAssistantTarget.ETA -> "Eta"
-    }
 
 private fun isAgentAccessibilityEnabled(context: Context): Boolean {
     val expected = ComponentName(

@@ -57,7 +57,7 @@ internal fun ConversationTitleSettingsScreen(
         .collectAsState(initial = ConversationTitleSettings())
 
     LaunchedEffect(Unit) {
-        RuntimeConfigRepository.ensureDefaults(EtaApp.serviceInstance)
+        RuntimeConfigRepository.ensureDefaults()
     }
 
     val pickerState = remember(providers, primaryProviderId, primaryModelId) {

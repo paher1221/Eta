@@ -57,9 +57,7 @@ internal fun buildToolsState(context: Context): AgentToolsUiState =
             ToolGroupUi(
                 id = "device_direct",
                 title = context.getString(R.string.state_direct_access_to_equipment_eda92c),
-                tools = io.github.mangi.eta.agent.model.AgentPhoneToolCatalog.entries.filterNot { it.personal }.map {
-                    ToolItemUi(it.name, it.title, it.localizedDescription())
-                } + listOf(
+                tools = listOf(
                     ToolItemUi("list_alarms", context.getString(R.string.tool_ui_alarm_clock_schedule_acae32), context.getString(R.string.tool_ui_read_the_alarm_clock_that_has_been_created_in_th_2320d6)),
                     ToolItemUi("list_active_timers", context.getString(R.string.tool_ui_activity_timer_36f107), context.getString(R.string.tool_ui_read_running_or_paused_timers_3437c8)),
                     ToolItemUi("get_setting", context.getString(R.string.tool_ui_read_system_settings_d455ce), context.getString(R.string.tool_ui_read_the_specified_settings_key_496975)),
@@ -81,11 +79,7 @@ internal fun buildToolsState(context: Context): AgentToolsUiState =
             ToolGroupUi(
                 id = "personal_data",
                 title = context.getString(R.string.state_direct_access_to_personal_data_387d7b),
-                tools = io.github.mangi.eta.agent.context.PersonalSearchTools.searches.map {
-                    ToolItemUi(it.name, it.title, it.description)
-                } + io.github.mangi.eta.agent.model.AgentPhoneToolCatalog.entries.filter { it.personal }.map {
-                    ToolItemUi(it.name, it.title, it.localizedDescription())
-                } + listOf(
+                tools = listOf(
                     ToolItemUi("read_personal_item", context.getString(R.string.ui_misc_tool_read_personal_item), context.getString(R.string.ui_misc_tool_read_personal_item_desc)),
                     ToolItemUi("summarize_bills", context.getString(R.string.ui_misc_tool_summarize_bills), context.getString(R.string.ui_misc_tool_summarize_bills_desc)),
                     ToolItemUi("read_sms_code", context.getString(R.string.tool_ui_read_verification_code_7d1121), context.getString(R.string.tool_ui_only_extract_verification_codes_from_recent_sms__0fb8c1)),

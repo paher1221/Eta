@@ -3,9 +3,7 @@ package io.github.mangi.eta.agent.scheduler
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.PowerManager
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.device.RootAccess
 import io.github.mangi.eta.agent.model.AgentModelClient
 import io.github.mangi.eta.agent.runtime.AgentExecutionService
 import io.github.mangi.eta.agent.runtime.AgentExternalArchivePayload
@@ -192,7 +190,7 @@ internal object ScheduledTaskRunner {
         // 跳过 AgentExecutionService，仅持有有界 WakeLock 与绑定服务，实现运行时 0 通知静默执行。
         val leaseId = "scheduled:$runId"
         val executionJobHolder = arrayOfNulls<ActiveExecution>(1)
-        val allowBoundFallback = RootAccess.isGranted
+        val allowBoundFallback = false
         val needForegroundLease = task.showRunningNotification || !canRunSilentlyWithoutForegroundService(context)
         if (needForegroundLease) {
             val fgsAcquired = AgentExecutionService.acquire(
@@ -565,14 +563,10 @@ internal object ScheduledTaskRunner {
         )
     }
 
-    /** 仅当设备处于锁屏状态，且不满足后台受信任虚拟屏条件时，避免后台强闯物理主屏。 */
+    /** 仅当设备处于锁屏状态时，避免后台强闯物理主屏。 */
     private fun shouldDeferLockedGuiTask(context: Context): Boolean {
         val keyguard = context.getSystemService(KeyguardManager::class.java)
-        val isLocked = keyguard?.isKeyguardLocked == true
-        if (!isLocked) return false
-        val virtualDisplayPossible = Prefs.isEnabled(Prefs.Keys.AGENT_VIRTUAL_DISPLAY_ENABLED) &&
-            (RootAccess.isGranted || EtaApp.serviceInstance != null)
-        return !virtualDisplayPossible
+        return keyguard?.isKeyguardLocked == true
     }
 
     private fun summarizeOutput(raw: String): String {
@@ -588,11 +582,10 @@ internal object ScheduledTaskRunner {
 
     /**
      * 判断当前设备是否允许静默定时任务跳过前台执行服务：
-     * 处于前台、已授权 Root，或已加入电池优化白名单（Doze 不在 10 秒后切断后台网络）时安全放行。
+     * 处于前台，或已加入电池优化白名单（Doze 不在 10 秒后切断后台网络）时安全放行。
      */
     internal fun canRunSilentlyWithoutForegroundService(context: Context): Boolean =
         MainActivity.isInForeground ||
-            RootAccess.isGranted ||
             ScheduledTaskHealthChecker.inspect(context).ignoringBatteryOptimizations
 
     private fun acquireBoundedWakeLock(context: Context, timeoutMs: Long): PowerManager.WakeLock? =

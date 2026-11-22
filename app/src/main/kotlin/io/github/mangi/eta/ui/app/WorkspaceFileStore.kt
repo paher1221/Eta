@@ -3,14 +3,11 @@ package io.github.mangi.eta.ui.app
 import android.content.Context
 import android.net.Uri
 import io.github.mangi.eta.agent.device.AgentFileReferenceGateway
-import io.github.mangi.eta.agent.device.RootAccess
 import io.github.mangi.eta.agent.terminal.FileToolBackend
 import io.github.mangi.eta.agent.terminal.FileToolKind
 import io.github.mangi.eta.agent.terminal.LocalFileToolBackend
 import io.github.mangi.eta.agent.terminal.ShellFileToolBackend
-import io.github.mangi.eta.agent.terminal.ShellProcessSupervisor
 import io.github.mangi.eta.agent.terminal.TerminalPrivateStorage
-import io.github.mangi.eta.agent.terminal.runOneShotShell
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -91,10 +88,4 @@ internal class WorkspaceFileStore(
     }
 }
 
-private fun workspaceBackend(root: File): FileToolBackend {
-    if (!RootAccess.isGranted) return LocalFileToolBackend(root)
-    val supervisor = ShellProcessSupervisor()
-    return ShellFileToolBackend("android", "root", root.path, root.path) { command, input, limit ->
-        runOneShotShell(supervisor, "root", command, timeoutSeconds = 20, stdin = input, maxOutputBytes = limit)
-    }
-}
+private fun workspaceBackend(root: File): FileToolBackend = LocalFileToolBackend(root)

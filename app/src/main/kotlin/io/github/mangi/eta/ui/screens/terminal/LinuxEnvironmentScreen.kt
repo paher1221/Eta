@@ -121,13 +121,12 @@ internal fun LinuxEnvironmentScreen(
     val selectedDistribution by selectionFlow.collectAsState(
         initial = LinuxEnvironmentSettingsRepository.current(appContext),
     )
-    val backendFlow = remember(appContext, selectedDistribution, capabilities.root.isGranted) {
+    val backendFlow = remember(appContext, selectedDistribution) {
         LinuxEnvironmentSettingsRepository.backendFlow(appContext, selectedDistribution)
     }
     val backend by backendFlow.collectAsState(
         initial = LinuxEnvironmentSettingsRepository.backend(appContext, selectedDistribution),
     )
-    val requiresRoot = backend == LinuxExecutionBackend.CHROOT && !capabilities.root.isGranted
     val installer = remember(appContext, backend) { AlpineEnvironmentInstaller(appContext) }
     val debianInstaller = remember(appContext, backend) { DebianEnvironmentInstaller(appContext) }
     val apkAnalysisInstaller = remember(appContext, selectedDistribution, backend) {
@@ -193,7 +192,7 @@ internal fun LinuxEnvironmentScreen(
     }
 
     fun installBase() {
-        if (busyTarget != null || requiresRoot) return
+        if (busyTarget != null) return
         busyTarget = InstallTarget.BASE
         resultMessage = null
         launchInstallation {
@@ -214,7 +213,7 @@ internal fun LinuxEnvironmentScreen(
     }
 
     fun installTools() {
-        if (busyTarget != null || requiresRoot) return
+        if (busyTarget != null) return
         busyTarget = InstallTarget.TOOLS
         resultMessage = null
         launchInstallation {
@@ -258,7 +257,6 @@ internal fun LinuxEnvironmentScreen(
                     .joinToString(" "),
                 mode = backend.displayName(),
                 summary = when {
-                    requiresRoot -> stringResource(R.string.capability_linux_root_lost)
                     busyTarget != null -> activeProgress ?: stringResource(R.string.linux_installing)
                     selectedToolsReady -> stringResource(R.string.linux_environment_tools_ready)
                     selectedBaseReady -> stringResource(R.string.linux_environment_base_ready)
@@ -273,7 +271,6 @@ internal fun LinuxEnvironmentScreen(
                 busy = busyTarget != null,
                 message = resultMessage,
                 actionText = when {
-                    requiresRoot -> stringResource(R.string.capability_enhancements)
                     selectedToolsReady -> null
                     busyTarget != null -> stringResource(R.string.linux_installing)
                     selectedBaseReady -> stringResource(R.string.linux_install_base_tools)
@@ -281,8 +278,7 @@ internal fun LinuxEnvironmentScreen(
                 },
                 actionEnabled = busyTarget == null,
                 onAction = {
-                    if (requiresRoot) onNavigate(AppRoute.SystemEnhance)
-                    else if (selectedBaseReady) installTools() else installBase()
+                    if (selectedBaseReady) installTools() else installBase()
                 },
             )
         }
@@ -295,7 +291,7 @@ internal fun LinuxEnvironmentScreen(
             LinuxEnvironmentConfiguration(
                 distribution = selectedDistribution,
                 backend = backend,
-                rootGranted = capabilities.root.isGranted,
+                rootGranted = false,
                 enabled = busyTarget == null,
                 onDistributionSelected = { distribution ->
                     if (busyTarget == null && distribution != selectedDistribution) {
@@ -305,7 +301,7 @@ internal fun LinuxEnvironmentScreen(
                 },
                 onBackendSelected = { selectedBackend ->
                     if (busyTarget == null && selectedBackend != backend &&
-                        (selectedBackend == LinuxExecutionBackend.PROOT || capabilities.root.isGranted)
+                        selectedBackend == LinuxExecutionBackend.PROOT
                     ) {
                         resultMessage = null
                         coroutineScope.launch {
@@ -407,7 +403,7 @@ internal fun LinuxEnvironmentScreen(
                             busyTarget == profileUi.target -> stringResource(R.string.linux_installing)
                             else -> stringResource(R.string.linux_install)
                         }
-                        val primaryEnabled = !requiresRoot && busyTarget == null && !ready
+                        val primaryEnabled = busyTarget == null && !ready
                         val onPrimaryClick: () -> Unit = {
                             if (busyTarget == null && !ready) {
                                 busyTarget = profileUi.target
@@ -472,7 +468,7 @@ internal fun LinuxEnvironmentScreen(
                         busyTarget == InstallTarget.APK_ANALYSIS -> context.getString(R.string.linux_installing)
                         else -> context.getString(R.string.linux_install)
                     }
-                    val apkEnabled = busyTarget == null && !requiresRoot && !apkAnalysisReady
+                    val apkEnabled = busyTarget == null && !apkAnalysisReady
                     val onApkInstall: () -> Unit = {
                         if (busyTarget == null && !apkAnalysisReady) {
                             busyTarget = InstallTarget.APK_ANALYSIS

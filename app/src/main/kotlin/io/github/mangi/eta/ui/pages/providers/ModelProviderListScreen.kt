@@ -30,7 +30,6 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.data.model.AppearanceUiStyle
 import io.github.mangi.eta.data.model.ProviderSetting
@@ -82,7 +81,7 @@ internal fun ModelProviderListScreen(
     if (providerToDelete != null) retainedProviderToDelete = providerToDelete
 
     LaunchedEffect(Unit) {
-        RuntimeConfigRepository.ensureDefaults(EtaApp.serviceInstance)
+        RuntimeConfigRepository.ensureDefaults()
     }
 
     val displayNames = providers.associate { provider ->
@@ -109,7 +108,6 @@ internal fun ModelProviderListScreen(
         scope.launch {
             activeDeleteTarget?.let { provider ->
                 ProviderRepository.deleteProvider(provider.id)
-                RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
             }
             providerToDelete = null
         }
@@ -216,8 +214,7 @@ internal fun ModelProviderListScreen(
                                 onSelect = {
                                     scope.launch {
                                         RuntimeConfigRepository.setSelectedProviderId(provider.id)
-                                        RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
-                                    }
+                                                            }
                                 },
                             )
                         }
@@ -322,8 +319,7 @@ internal fun ModelProviderListScreen(
                                     onSelect = {
                                         scope.launch {
                                             RuntimeConfigRepository.setSelectedProviderId(provider.id)
-                                            RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
-                                        }
+                                                                    }
                                     },
                                 )
                             }

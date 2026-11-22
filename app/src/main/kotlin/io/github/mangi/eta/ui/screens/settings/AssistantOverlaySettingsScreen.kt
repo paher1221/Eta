@@ -55,7 +55,7 @@ internal fun AssistantOverlaySettingsScreen(
         .collectAsState(initial = AssistantOverlaySettings())
 
     LaunchedEffect(Unit) {
-        RuntimeConfigRepository.ensureDefaults(EtaApp.serviceInstance)
+        RuntimeConfigRepository.ensureDefaults()
     }
 
     val pickerState = remember(providers, primaryProviderId, primaryModelId) {

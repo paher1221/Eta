@@ -170,9 +170,7 @@ internal class AgentRuntimeRunExecutor(
                 AgentMemoryContext.DISABLED
             }
             if (request.config.terminalTools || request.config.deviceDirectTools) {
-                // 启动探测由 App 拥有；模型首轮等待其结果，并在历史曾授权但临时未就绪时自动复检。
                 runController.throwIfCancelled()
-                io.github.mangi.eta.agent.device.RootAccess.awaitOrRetryIfPreviouslyGranted(appContext)
             }
             val pendingSkillConflict = PendingSkillConflictCapabilityParser.parse(request.history)
             val mcpSnapshot = if (scheduledRunContext?.capabilities?.mcpTools == false) {
@@ -265,7 +263,6 @@ internal class AgentRuntimeRunExecutor(
                 skillPackageInstaller = skillPackageInstaller,
                 runAvailableSkillIds = skillContext.installedSkills.mapTo(mutableSetOf()) { it.id },
                 pendingSkillConflict = pendingSkillConflict,
-                virtualDisplayEnabled = { currentPermissions().virtualDisplay },
             )
             val routingExecutor = RoutingToolExecutor(
                 local = executor,

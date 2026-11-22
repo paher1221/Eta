@@ -131,7 +131,7 @@ internal fun SubagentSettingsScreen(
         }
     }
     LaunchedEffect(Unit) {
-        RuntimeConfigRepository.ensureDefaults(EtaApp.serviceInstance)
+        RuntimeConfigRepository.ensureDefaults()
         reloadCustomProfiles()
     }
 
@@ -198,9 +198,7 @@ internal fun SubagentSettingsScreen(
         val targetPrefs = agentPrefs
         if (targetPrefs != null && targetPrefs.edit().putBoolean(Prefs.Keys.AGENT_SUBAGENT_ENABLED, checked).commit()) {
             subagentEnabled = checked
-            Prefs.reconcileAgentPreferences(EtaApp.serviceInstance)
             scope.launch {
-                RuntimeConfigRepository.syncToRemotePreferences(EtaApp.serviceInstance)
             }
         }
     }

@@ -1,10 +1,10 @@
 package io.github.mangi.eta.agent.tool
 
 import android.graphics.Rect
-import io.github.mangi.eta.agent.device.RootShellDeviceController.ElementObservation
-import io.github.mangi.eta.agent.device.RootShellDeviceController.ElementSource
-import io.github.mangi.eta.agent.device.RootShellDeviceController.Observation
-import io.github.mangi.eta.agent.device.RootShellDeviceController.UiNode
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController.ElementObservation
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController.ElementSource
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController.Observation
+import io.github.mangi.eta.agent.device.AccessibilityDeviceController.UiNode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

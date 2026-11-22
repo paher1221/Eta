@@ -18,7 +18,7 @@ import org.junit.Test
 class AgentModelClientLoopTest {
     @Test
     fun transientCapabilityLossDoesNotShrinkTheToolCatalogMidRun() {
-        var accessibility = true
+        var notifications = true
         val toolLists = mutableListOf<String>()
         val provider = ScriptedProvider(listOf(
             { request, _ ->
@@ -33,13 +33,13 @@ class AgentModelClientLoopTest {
         AgentModelClient.complete(
             modelConfig(), "看一下屏幕",
             AgentModelClient.ToolExecutor {
-                accessibility = false
+                notifications = false
                 AgentModelClient.ToolResult("""{"ok":true}""")
             },
             provider = provider,
-            capabilitiesProvider = { AgentToolCapabilities(rootAvailable = false, accessibilityAvailable = accessibility) },
+            capabilitiesProvider = { AgentToolCapabilities(rootAvailable = false, notificationsAllowed = notifications) },
         )
-        assertTrue(toolLists[0].contains("observe_screen"))
+        assertTrue(toolLists[0].contains("recent_notifications"))
         assertEquals(toolLists[0], toolLists[1])
     }
 

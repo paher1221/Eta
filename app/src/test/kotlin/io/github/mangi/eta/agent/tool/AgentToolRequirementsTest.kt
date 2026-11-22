@@ -42,12 +42,11 @@ class AgentToolRequirementsTest {
     fun projectionNarrowsPrivilegedKeysWithoutMutatingSource() {
         val original = catalog()
         val projected = AgentToolRequirements.project(original)
-        assertTrue(setOf("terminal", "terminal_job", "terminal_daemon", "read_file", "read_image", "observe_screen", "browser_use").all {
+        assertTrue(setOf("terminal", "terminal_job", "terminal_daemon", "read_file", "read_image", "browser_use").all {
             it in projected.names()
         })
         assertEquals("[\"user\"]", projected.properties("terminal").getJSONObject("identity").getJSONArray("enum").toString())
         assertEquals(2, original.properties("terminal").getJSONObject("identity").getJSONArray("enum").length())
-        assertFalse(projected.properties("press_key").getJSONObject("button").getJSONArray("enum").toString().contains("PASTE"))
         assertFalse(projected.toString().contains("/data/local/tmp/eta"))
         assertFalse(projected.properties("read_image").getJSONObject("path").toString().contains("Root"))
     }
@@ -55,15 +54,15 @@ class AgentToolRequirementsTest {
     @Test
     fun ordinaryAuthorizationGatesTheCorrespondingTools() {
         val restricted = AgentToolCapabilities(
-            accessibilityAvailable = false,
             notificationsAllowed = false, usageAllowed = false, locationAllowed = false,
         )
         val names = restricted.project(catalog()).names()
         assertTrue(setOf("launch_app", "open_uri", "terminal", "browser_use").all { it in names })
-        assertTrue(setOf("observe_screen", "wait_for_text", "wait_for_package", "recent_notifications", "app_usage_summary", "get_current_location").none { it in names })
+        assertTrue(setOf("recent_notifications", "app_usage_summary", "get_current_location").none { it in names })
         assertEquals("NOTIFICATION_ACCESS_REQUIRED", restricted.unavailableCode("recent_notifications"))
+        assertEquals("APP_USAGE_ACCESS_REQUIRED", restricted.unavailableCode("app_usage_summary"))
+        assertEquals("LOCATION_PERMISSION_REQUIRED", restricted.unavailableCode("get_current_location"))
         assertEquals(null, restricted.copy(notificationsAllowed = true).unavailableCode("recent_notifications"))
-        assertEquals(null, restricted.copy(accessibilityAvailable = true).unavailableCode("observe_screen"))
     }
 
     private fun catalog() = AgentToolCatalog.build(

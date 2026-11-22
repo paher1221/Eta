@@ -16,7 +16,6 @@ import io.github.mangi.eta.agent.tool.AgentToolCapabilities
 internal data class DeviceCapabilitiesUi(
     val tools: AgentToolCapabilities,
 ) {
-    val accessibilityAvailable: Boolean get() = tools.accessibilityAvailable
 }
 
 

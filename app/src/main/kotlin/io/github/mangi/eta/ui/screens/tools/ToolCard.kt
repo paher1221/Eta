@@ -360,7 +360,6 @@ private fun toolRequirementText(id: String, capabilities: AgentToolCapabilities)
     val requirement = toolCardRequirement(id)
     val unavailableCode = capabilities.unavailableCode(actualToolName(id))
     return when {
-        !capabilities.accessibilityAvailable && requirement.accessibility -> stringResource(R.string.capability_accessibility_required)
         unavailableCode == "NOTIFICATION_ACCESS_REQUIRED" -> stringResource(R.string.capability_notification_access_required)
         unavailableCode == "APP_USAGE_ACCESS_REQUIRED" -> stringResource(R.string.capability_usage_access_required)
         unavailableCode == "LOCATION_PERMISSION_REQUIRED" -> stringResource(R.string.capability_location_access_required)

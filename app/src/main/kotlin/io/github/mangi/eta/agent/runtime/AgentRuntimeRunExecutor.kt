@@ -2,7 +2,6 @@ package io.github.mangi.eta.agent.runtime
 
 import android.content.Context
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.accessibility.AgentAccessibilityKeeper
 import io.github.mangi.eta.agent.browser.BrowserSessionRegistry
 import io.github.mangi.eta.agent.model.AgentConversationCodec
 import io.github.mangi.eta.agent.model.AgentConversationToolCatalog
@@ -224,36 +223,16 @@ internal class AgentRuntimeRunExecutor(
                     runBlocking { AgentMemoryRepository.isEnabled() }
                 },
                 memoryWritable = roleplayContext == null,
-                screenshotExcludedPackages = {
-                    entrySurfaceGuard?.consumeScreenshotExcludedPackages().orEmpty()
-                },
                 beforeToolExecution = { toolName ->
-                    val requiresAccessibility =
-                        AgentToolRequirements.requiresAccessibility(toolName)
-                    if (
-                        !requiresAccessibility &&
-                        !AgentOverlayVisibilityPolicy.requiresEntrySurfaceDismissal(toolName)
-                    ) {
+                    if (!AgentOverlayVisibilityPolicy.requiresEntrySurfaceDismissal(toolName)) {
                         ToolExecutionDecision.Allow
+                    } else if (entrySurfaceGuard?.dismissOnce() == false) {
+                        ToolExecutionDecision.Reject(
+                            code = "ENTRY_SURFACE_NOT_READY",
+                            message = "入口窗口关闭未完成；本次工具未执行，请勿在当前任务中重复调用",
+                        )
                     } else {
-                        val accessibility = if (requiresAccessibility) {
-                            AgentAccessibilityKeeper.ensureEnabledForGuiOperation(appContext)
-                        } else {
-                            null
-                        }
-                        when {
-                            accessibility != null && !accessibility.available ->
-                                ToolExecutionDecision.Reject(
-                                    code = accessibility.code,
-                                    message = accessibility.message,
-                                )
-                            entrySurfaceGuard?.dismissOnce() == false ->
-                                ToolExecutionDecision.Reject(
-                                    code = "ENTRY_SURFACE_NOT_READY",
-                                    message = "入口窗口关闭未完成；本次工具未执行，请勿在当前任务中重复调用",
-                                )
-                            else -> ToolExecutionDecision.Allow
-                        }
+                        ToolExecutionDecision.Allow
                     }
                 },
                 skillIndexService = skillIndexService,

@@ -9,7 +9,6 @@
     <string name="capability_root_not_granted">Root access not granted; using standard mode</string>
     <string name="capability_root_request">Authorize</string>
     <string name="capability_root_refresh">Check again</string>
-    <string name="capability_accessibility_required">Available after enabling accessibility</string>
     <string name="capability_root_features">Root capabilities</string>
     <string name="capability_system_features">System assistant and enhancements</string>
     <string name="capability_root_device">App and system management</string>
@@ -20,8 +19,6 @@
     <string name="capability_root_linux_summary">Root enables chroot, system directories, and daemon tasks independent of the app. Standard mode supports the private workspace and PRoot.</string>
     <string name="capability_hook_google">Gemini and Circle to Search</string>
     <string name="capability_hook_google_summary">Enable and repair system assistant routing and Circle to Search entry points on ColorOS. Requires LSPosed and the corresponding system, SystemUI, and Google app scopes.</string>
-    <string name="capability_hook_accessibility">Accessibility protection</string>
-    <string name="capability_hook_accessibility_summary">Maintain service activation through system_server. Requires the LSPosed system scope. Accessibility can still be enabled manually in standard mode.</string>
     <string name="capability_import_denied">Cannot read this path. Import the file or authorize a shared directory.</string>
     <string name="capability_import_failed">File import failed. Try again.</string>
     <string name="capability_import_insufficient_storage">Not enough available storage space to import this file</string>

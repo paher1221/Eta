@@ -103,10 +103,9 @@ class ToolCatalogUiTest {
     fun disabledToolsAreOmittedFromModelCatalogAndPersistInPrefs() {
         val context = RuntimeEnvironment.getApplication()
         Prefs.initLocal(context)
-        Prefs.setToolsEnabled(listOf("read_sms_code", "tap_area"), false)
+        Prefs.setToolsEnabled(listOf("read_sms_code", "set_volume"), false)
         assertFalse(Prefs.isToolEnabled("read_sms_code"))
-        assertFalse(Prefs.isToolEnabled("tap"))
-        assertFalse(Prefs.isToolEnabled("tap_area"))
+        assertFalse(Prefs.isToolEnabled("set_volume"))
         assertTrue(Prefs.isToolEnabled("list_alarms"))
 
         val tools = AgentToolCatalog.build(
@@ -122,14 +121,13 @@ class ToolCatalogUiTest {
             tools.getJSONObject(it).getJSONObject("function").getString("name")
         }.toSet()
         assertFalse("read_sms_code" in names)
-        assertFalse("tap" in names)
-        assertFalse("tap_area" in names)
+        assertFalse("set_volume" in names)
         assertTrue("list_alarms" in names)
-        assertTrue("tap_element" in names)
+        assertTrue("get_current_context" in names)
 
-        Prefs.setToolsEnabled(listOf("read_sms_code", "tap_area"), true)
+        Prefs.setToolsEnabled(listOf("read_sms_code", "set_volume"), true)
         assertTrue(Prefs.isToolEnabled("read_sms_code"))
-        assertTrue(Prefs.isToolEnabled("tap"))
+        assertTrue(Prefs.isToolEnabled("set_volume"))
     }
 
     @Test

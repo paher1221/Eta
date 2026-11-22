@@ -1,29 +1,22 @@
 package io.github.mangi.eta.agent.tool
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.view.Display
 import android.content.Context
-import android.graphics.Rect
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.SystemClock
-import android.view.Display
-import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
 import io.github.mangi.eta.agent.browser.AgentBrowserSession
-import io.github.mangi.eta.agent.device.AccessibilityDeviceController
-import io.github.mangi.eta.agent.device.DeviceControlUnavailableException
 import io.github.mangi.eta.agent.model.AgentModelClient
 import io.github.mangi.eta.agent.model.AgentHttpClient
 import io.github.mangi.eta.agent.device.LocalNetworkPermission
 import io.github.mangi.eta.agent.web.AgentWebTools
 import io.github.mangi.eta.agent.web.WebHttpTransport
-import io.github.mangi.eta.agent.model.AgentScreenObservationContract
 import io.github.mangi.eta.agent.model.AgentSensitiveToolPolicy
 import io.github.mangi.eta.agent.model.AgentTerminalToolCatalog
 import io.github.mangi.eta.agent.model.AgentFileToolCatalog
-import io.github.mangi.eta.agent.overlay.AgentHapticFeedback
-import io.github.mangi.eta.agent.overlay.AgentOverlayClearance
-import io.github.mangi.eta.agent.overlay.GestureIndicator
 import io.github.mangi.eta.agent.runtime.AgentAppContext
 import io.github.mangi.eta.agent.runtime.AgentRunCancelledException
 import io.github.mangi.eta.agent.runtime.GuiControlCoordinator
@@ -86,10 +79,6 @@ internal class AgentLocalTools(
         runBlocking { AgentMemoryRepository.isEnabled() }
     },
     private val memoryWritable: Boolean = true,
-    private val screenshotExcludedPackages: () -> Set<String> = { emptySet() },
-    private val screenObservationProvider: (
-        (AgentScreenObservationContract.Options) -> AccessibilityDeviceController.Observation
-    )? = null,
     private val beforeToolExecution: (String) -> ToolExecutionDecision = {
         ToolExecutionDecision.Allow
     },
@@ -111,10 +100,7 @@ internal class AgentLocalTools(
 ) : AgentModelClient.ToolExecutor, AutoCloseable {
 
     private val closed = AtomicBoolean(false)
-    @Volatile
-    private var activeDisplayId: Int = Display.DEFAULT_DISPLAY
     private val browserSessionRef = lazy { browserSession ?: AgentBrowserSession() }
-    private val deviceController = AccessibilityDeviceController(logger, screenshotExcludedPackages)
     private val structuredDeviceTools = AgentStructuredDeviceTools(
         context = context,
         logger = logger,
@@ -146,7 +132,6 @@ internal class AgentLocalTools(
         linuxSharedMountsProvider = { SharedFolderMounts.current() },
     )
 
-    private val publishedObservation = AtomicReference(PublishedObservation())
     private val runAvailableSkillIds = runAvailableSkillIds
         .mapTo(mutableSetOf(), SkillParser::normalizeSkillLookup)
     private val mutatedSkillIds = ConcurrentHashMap.newKeySet<String>()
@@ -157,11 +142,9 @@ internal class AgentLocalTools(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        publishedObservation.set(PublishedObservation())
         if (browserSessionRef.isInitialized()) browserSessionRef.value.interruptAgentAction(browserRunId)
         webTools.close()
         terminalController.interruptAll()
-        deviceController.close()
         githubSkillSource?.close()
         inspectedGitHubSnapshots.clear()
         guiControl?.close()
@@ -171,16 +154,13 @@ internal class AgentLocalTools(
         if (closed.get()) throw AgentRunCancelledException()
         val control = guiControl
         return if (control != null && AgentToolRequirements.requiresGuiControl(toolCall.name)) {
-            control.withAction { generation -> executeLocal(toolCall, generation) }
+            control.withAction { executeLocal(toolCall) }
         } else {
-            executeLocal(toolCall, null)
+            executeLocal(toolCall)
         }
     }
 
-    private fun executeLocal(
-        toolCall: AgentModelClient.ToolCall,
-        guiGeneration: Long?,
-    ): AgentModelClient.ToolResult =
+    private fun executeLocal(toolCall: AgentModelClient.ToolCall): AgentModelClient.ToolResult =
         runCatching {
             if (closed.get()) throw AgentRunCancelledException()
             val args = JSONObject(toolCall.argumentsJson.ifBlank { "{}" })
@@ -192,14 +172,6 @@ internal class AgentLocalTools(
             }
             deviceToolPermissionError(toolCall.name)?.let { return@runCatching it }
             memoryToolPermissionError(toolCall.name)?.let { return@runCatching it }
-            if (guiGeneration != null && publishedObservation.get().generation != guiGeneration) {
-                publishedObservation.set(PublishedObservation())
-                if (AgentToolRequirements.requiresFreshObservation(toolCall.name)) {
-                    return@runCatching textResult(errorResult(
-                        "NO_OBSERVATION", "手机操作权已变化，请先调用 observe_screen 重新观察，再操作当前页面",
-                    ))
-                }
-            }
             val preparation = if (AgentToolRequirements.hasForegroundIntentFallback(toolCall.name)) {
                 ToolExecutionDecision.Allow
             } else {
@@ -208,7 +180,6 @@ internal class AgentLocalTools(
             when (val decision = preparation) {
                 ToolExecutionDecision.Allow -> Unit
                 is ToolExecutionDecision.Reject -> {
-                    if (decision.code.startsWith("ACCESSIBILITY_")) publishedObservation.set(PublishedObservation())
                     return@runCatching textResult(
                         errorResult(
                             code = decision.code,
@@ -221,15 +192,12 @@ internal class AgentLocalTools(
                 "get_current_context" -> textResult(DeviceContextTool.current(context))
                 "search_apps" -> textResult(searchApps(args))
                 "launch_app" -> {
-                    publishedObservation.set(PublishedObservation())
                     textResult(launchApp(args))
                 }
                 "present_to_user" -> {
-                    publishedObservation.set(PublishedObservation())
                     textResult(presentToUser(args))
                 }
                 "open_uri" -> {
-                    publishedObservation.set(PublishedObservation())
                     textResult(openUri(args))
                 }
                 "browser_use" -> browserUse(args, toolCall.id)
@@ -237,37 +205,8 @@ internal class AgentLocalTools(
                     if (!browserToolsEnabled()) textResult(errorResult("BROWSER_TOOLS_DISABLED", "请先启用网页搜索、读取与浏览器工具"))
                     else textResult(webTools.execute(toolCall.name, args))
                 }
-                "observe_screen" -> observeScreen(args, guiGeneration)
-                "release_gui" -> {
-                    publishedObservation.set(PublishedObservation())
-                    guiControl?.release()
-                    textResult(JSONObject().put("ok", true).put("tool", "release_gui").toString())
-                }
-                "tap" -> afterAction(tap(args))
-                "tap_area" -> afterAction(tapArea(args))
-                "tap_element" -> afterAction(tapElement(args))
-                "long_press" -> afterAction(longPress(args))
-                "long_press_element" -> afterAction(longPressElement(args))
-                "swipe" -> afterAction(swipe(args))
-                "scroll" -> afterAction(deviceController.scroll(args.optString("direction"), args.optString("amount"), currentActiveDisplayId()))
-                "scroll_element" -> afterAction(scrollElement(args))
-                "type_text" -> afterAction(typeText(args))
-                // 旧会话或旧入口仍可能请求这些工具名；保留执行路径，但不再出现在模型目录里。
-                "input_text" -> afterAction(inputText(args))
-                "replace_text" -> afterAction(replaceText(args))
-                "clear_text" -> afterAction(clearText(args))
                 "set_clipboard" -> textResult(setClipboard(args))
                 "get_clipboard" -> textResult(getClipboard())
-                "paste_text" -> afterAction(pasteText(args))
-                "press_key" -> afterAction(deviceController.pressKey(args.optString("button"), currentActiveDisplayId()))
-                "wait" -> textResult(deviceController.waitMs(args.optInt("duration_ms", 1_000)))
-                "wait_for_text" -> textResult(waitForText(args))
-                "wait_for_package" -> textResult(waitForPackage(args))
-                "open_system_panel" -> {
-                    publishedObservation.set(PublishedObservation())
-                    activeDisplayId = Display.DEFAULT_DISPLAY
-                    textResult(deviceController.openSystemPanel(args.optString("panel")))
-                }
                 in DEVICE_TOOL_NAMES ->
                     structuredDeviceTools.execute(toolCall.name, args)
                         ?: textResult(errorResult("UNKNOWN_TOOL", "未知设备工具"))
@@ -297,7 +236,6 @@ internal class AgentLocalTools(
                 errorResult(
                     code = when (throwable) {
                         is InvalidToolArgumentException, is org.json.JSONException -> "INVALID_ARGUMENT"
-                        is DeviceControlUnavailableException -> "ACCESSIBILITY_UNAVAILABLE"
                         else -> "TOOL_ERROR"
                     },
                     message = throwable.message ?: throwable.javaClass.simpleName
@@ -320,7 +258,6 @@ internal class AgentLocalTools(
             deviceToolPermissionError(toolName)?.let { return JSONObject(it.content) }
             return when (val decision = beforeToolExecution(toolName)) {
                 ToolExecutionDecision.Allow -> {
-                    publishedObservation.set(PublishedObservation())
                     action()
                 }
                 is ToolExecutionDecision.Reject -> JSONObject(errorResult(decision.code, decision.message))
@@ -460,373 +397,44 @@ internal class AgentLocalTools(
         )
     }
 
-    private fun currentActiveDisplayId(): Int = Display.DEFAULT_DISPLAY
-
     private fun checkCancellation() {
         if (closed.get() || Thread.currentThread().isInterrupted) throw AgentRunCancelledException()
     }
 
-    private fun publishObservation(observation: PublishedObservation) {
-        checkCancellation()
-        publishedObservation.set(observation)
-        if (closed.get() || Thread.currentThread().isInterrupted) {
-            publishedObservation.compareAndSet(observation, PublishedObservation())
-            throw AgentRunCancelledException()
-        }
-    }
-
-    private fun observeScreen(args: JSONObject, generation: Long?): AgentModelClient.ToolResult {
-        publishedObservation.set(PublishedObservation())
-        val startedAt = SystemClock.elapsedRealtime()
-        val options = AgentScreenObservationContract.resolve(args)
-        val displayId = currentActiveDisplayId()
-        val observation = screenObservationProvider?.invoke(options)
-            ?: deviceController.observe(
-                includeScreenshot = options.includeScreenshot,
-                includeUiTree = options.includeUiTree,
-                maxNodes = options.maxNodes,
-                displayId = displayId,
-            )
-        publishObservation(
-            PublishedObservation(
-                elements = observation.elementObservation,
-                coordinateSpace = observation.coordinateSpace,
-                generation = generation.takeIf { JSONObject(observation.content).optBoolean("ok") },
-            ),
-        )
-        logger.debug {
-            "Agent local tool action=observe_screen outcome=completed " +
-                "display=$displayId observation=${observation.elementObservation?.id} " +
-                "nodes=${observation.elementObservation?.nodes?.size ?: 0} " +
-                "image=${observation.image?.bytes ?: 0} elapsed_ms=${SystemClock.elapsedRealtime() - startedAt} " +
-                "coordinate=${observation.coordinateSpace?.summary()}"
-        }
-        return AgentModelClient.ToolResult(
-            content = observation.content,
-            images = listOfNotNull(observation.image)
-        )
-    }
-
-    /**
-     * 成功的 GUI 动作附带一次轻量观察：只读 UI 树、不截图，节点数减半。
-     * 模型据此确认动作生效并直接用新的 observation_id 继续操作，不必再单独 observe_screen；
-     * 失败或结果未知的动作不附带，保持"先重新观察"的既有约束。
-     */
-    private fun afterAction(raw: String): AgentModelClient.ToolResult {
-        checkCancellation()
-        val result = runCatching { JSONObject(raw) }.getOrNull()
-        if (result == null || !result.optBoolean("ok")) return textResult(raw)
-        val before = publishedObservation.get().elements
-        val after = runCatching {
-            val displayId = currentActiveDisplayId()
-            screenObservationProvider?.invoke(AFTER_ACTION_OPTIONS)
-                ?: deviceController.observe(
-                    includeScreenshot = false,
-                    includeUiTree = true,
-                    maxNodes = AFTER_ACTION_OPTIONS.maxNodes,
-                    displayId = displayId,
-                )
-        }.getOrElse { throwable ->
-            publishedObservation.set(PublishedObservation())
-            checkCancellation()
-            if (throwable is AgentRunCancelledException) throw throwable
-            logger.debug { "Agent local tool after-action observation failed: type=${throwable.javaClass.simpleName}" }
-            AccessibilityDeviceController.Observation(
-                content = JSONObject()
-                    .put("ok", false)
-                    .put("ui_tree_status", "query_failed")
-                    .put("code", "OBSERVATION_FAILED")
-                    .put("ui_tree_note", "动作已执行，但后续观察失败；旧节点与坐标已失效，请先重新观察，不要重复动作")
-                    .toString(),
-                image = null,
-                coordinateSpace = null,
-                elementObservation = null,
-            )
-        }
-        // 新快照取代动作前的快照：旧 index 在界面变化后本就不可靠，继续保留只会让模型误用。
-        publishObservation(
-            if (after.elementObservation == null) PublishedObservation()
-            else publishedObservation.get().copy(elements = after.elementObservation, coordinateSpace = after.coordinateSpace),
-        )
-        result.put("after", AgentAfterActionSummary.build(before, after))
-        return textResult(result.toString())
-    }
-
-    private fun tap(args: JSONObject): String {
-        val displayId = currentActiveDisplayId()
-        val point = convertPoint(
-            x = args.getInt("x"),
-            y = args.getInt("y"),
-            coordinateSpace = args.optString("coordinate_space"),
-            displayId = displayId,
-        )
-        return clearOverlay(displayId, point) {
-            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
-            showTap(point.x, point.y, displayId)
-            deviceController.tap(point.x, point.y, displayId)
-        }
-    }
-
-    private fun tapArea(args: JSONObject): String {
-        val displayId = currentActiveDisplayId()
-        val x1 = args.getInt("x1")
-        val y1 = args.getInt("y1")
-        val x2 = args.getInt("x2")
-        val y2 = args.getInt("y2")
-        val coordinateSpace = args.optString("coordinate_space")
-        val first = convertPoint(x1, y1, coordinateSpace, displayId)
-        val second = convertPoint(x2, y2, coordinateSpace, displayId)
-        val point = ScreenPoint(
-            x = ((first.x.toLong() + second.x.toLong()) / 2L).toInt(),
-            y = ((first.y.toLong() + second.y.toLong()) / 2L).toInt(),
-        )
-        return clearOverlay(displayId, point) {
-            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
-            showTap(point.x, point.y, displayId)
-            deviceController.tap(point.x, point.y, displayId)
-        }
-    }
-
-    private fun tapElement(args: JSONObject): String {
-        val displayId = currentActiveDisplayId()
-        val index = args.optInt("index", -1)
-        val observation = requireElementObservation(args) ?: return observationError(args)
-        val node = observation.nodes.firstOrNull { it.index == index }
-        if (node == null) {
-            return errorResult("INVALID_NODE_INDEX", "观察快照中不存在节点 index=$index")
-        }
-        val result = clearOverlay(displayId, ScreenPoint(node.centerX, node.centerY)) {
-            deviceController.tapElement(observation, index)
-        }
-        if (result.isOkJson()) {
-            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.TAP)
-            showTap(node.centerX, node.centerY, displayId)
-        }
-        return result
-    }
-
-    private fun longPressElement(args: JSONObject): String {
-        val displayId = currentActiveDisplayId()
-        val index = args.optInt("index", -1)
-        val observation = requireElementObservation(args) ?: return observationError(args)
-        val node = observation.nodes.firstOrNull { it.index == index }
-        val durationMs = args.optInt("duration_ms", 800)
-        if (node == null) {
-            return errorResult("INVALID_NODE_INDEX", "观察快照中不存在节点 index=$index")
-        }
-        val result = clearOverlay(displayId, ScreenPoint(node.centerX, node.centerY)) {
-            deviceController.longPressElement(observation, index, durationMs)
-        }
-        if (result.isOkJson()) {
-            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.LONG_PRESS)
-            showLongPress(node.centerX, node.centerY, durationMs, displayId)
-        }
-        return result
-    }
-
-    private fun longPress(args: JSONObject): String {
-        val displayId = currentActiveDisplayId()
-        val point = convertPoint(
-            x = args.getInt("x"),
-            y = args.getInt("y"),
-            coordinateSpace = args.optString("coordinate_space"),
-            displayId = displayId,
-        )
-        val durationMs = args.optInt("duration_ms", 800)
-        return clearOverlay(displayId, point) {
-            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.LONG_PRESS)
-            showLongPress(point.x, point.y, durationMs, displayId)
-            deviceController.longPress(point.x, point.y, durationMs, displayId)
-        }
-    }
-
-    private fun swipe(args: JSONObject): String {
-        val displayId = currentActiveDisplayId()
-        val start = convertPoint(
-            x = args.getInt("x1"),
-            y = args.getInt("y1"),
-            coordinateSpace = args.optString("coordinate_space"),
-            displayId = displayId,
-        )
-        val end = convertPoint(
-            x = args.getInt("x2"),
-            y = args.getInt("y2"),
-            coordinateSpace = args.optString("coordinate_space"),
-            displayId = displayId,
-        )
-        val durationMs = args.optInt("duration_ms", 500)
-        return clearOverlay(displayId, start, end) {
-            AgentHapticFeedback.perform(context, AgentHapticFeedback.Type.SWIPE)
-            showSwipe(start.x, start.y, end.x, end.y, durationMs, displayId)
-            deviceController.swipe(
-                start.x,
-                start.y,
-                end.x,
-                end.y,
-                durationMs,
-                displayId,
-            )
-        }
-    }
-
-    private fun scrollElement(args: JSONObject): String {
-        val observation = requireElementObservation(args) ?: return observationError(args)
-        return deviceController.scrollElement(
-            observation = observation,
-            index = args.optInt("index", -1),
-            direction = args.optString("direction"),
-            amount = args.optString("amount"),
-        )
-    }
-
-    /**
-     * 统一的文本输入：replace（默认）整体替换为 text，text 为空即清空；append 在光标处插入。
-     * 指定 index 时先确认节点来自最近一次观察；不指定时作用于当前输入焦点。
-     * submit=true 在写入成功后按输入法回车，用于搜索、发送等提交动作。
-     */
-    private fun typeText(args: JSONObject): String {
-        val displayId = currentActiveDisplayId()
+    private fun setClipboard(args: JSONObject): String {
         val text = args.requiredText("text")
-        val mode = args.optString("mode", "replace").trim().lowercase(Locale.ROOT).ifBlank { "replace" }
-        val written = when (mode) {
-            "replace" -> replaceText(args)
-            "append" -> {
-                if (text.isEmpty()) return errorResult("INVALID_ARGUMENT", "append 模式的 text 不能为空")
-                if (args.optNullableInt("index") != null) {
-                    return errorResult("INVALID_ARGUMENT", "append 只作用于当前输入焦点；要写入指定输入框请用 mode=replace")
-                }
-                // 长文本走选区插入加粘贴回退，比逐字键入更稳定。
-                if (text.length > TYPE_TEXT_INCREMENTAL_CHARS) pasteText(args) else deviceController.inputText(text, displayId)
-            }
-            else -> return errorResult("INVALID_ARGUMENT", "mode 只能是 replace 或 append")
+        if (text.length > MAX_CLIPBOARD_TEXT_CHARS) {
+            return errorResult("TEXT_TOO_LONG", "剪贴板文本最多支持 $MAX_CLIPBOARD_TEXT_CHARS 个字符")
         }
-        val json = runCatching { JSONObject(written) }.getOrNull() ?: return written
-        json.put("tool", "type_text").put("mode", mode)
-        if (!json.optBoolean("ok") || !args.optBoolean("submit")) return json.toString()
-        val submitted = runCatching { JSONObject(deviceController.pressKey("ENTER", displayId)) }.getOrNull()
-        json.put("submitted", submitted?.optBoolean("ok") == true)
-        if (submitted?.optBoolean("ok") != true) {
-            // 文本已写入但提交失败：整体仍算成功，避免模型重复输入；由 submitted=false 提示单独补按回车或点按钮。
-            json.put("submit_error", submitted?.optString("code").orEmpty().ifBlank { "SUBMIT_FAILED" })
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val ok = runCatching {
+            clipboard.setPrimaryClip(ClipData.newPlainText("eta_agent", text))
+            true
+        }.getOrDefault(false)
+        val json = JSONObject()
+            .put("ok", ok)
+            .put("tool", "set_clipboard")
+            .put("chars", text.length)
+        if (!ok) {
+            json.put("code", "CLIPBOARD_WRITE_FAILED").put("message", "写入系统剪贴板失败")
         }
         return json.toString()
     }
 
-    private fun inputText(args: JSONObject): String {
-        val text = args.requiredText("text")
-        if (text.length > 1_000) {
-            return errorResult("TEXT_TOO_LONG", "input_text 最多支持 1000 个字符")
+    private fun getClipboard(): String {
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = runCatching { clipboard.primaryClip }.getOrNull()
+        val text = clip?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)?.coerceToText(requireContext())?.toString().orEmpty()
+        val json = JSONObject()
+            .put("ok", true)
+            .put("tool", "get_clipboard")
+            .put("text", text.take(8_000))
+            .put("truncated", text.length > 8_000)
+        if (text.isEmpty()) {
+            json.put("code", "CLIPBOARD_EMPTY").put("message", "剪贴板为空，或当前应用无权读取剪贴板")
         }
-        return when (args.optString("mode", "append").lowercase(Locale.ROOT)) {
-            "replace" -> replaceText(args)
-            "paste" -> pasteText(args)
-            else -> deviceController.inputText(text, currentActiveDisplayId())
-        }
-    }
-
-    private fun replaceText(args: JSONObject): String {
-        val index = args.optNullableInt("index")
-        val observation = if (index != null) {
-            requireElementObservation(args) ?: return observationError(args)
-        } else {
-            null
-        }
-        return deviceController.replaceText(
-            text = args.requiredText("text"),
-            index = index,
-            observation = observation,
-            displayId = currentActiveDisplayId(),
-        )
-    }
-
-    private fun clearText(args: JSONObject): String {
-        val index = args.optNullableInt("index")
-        val observation = if (index != null) {
-            requireElementObservation(args) ?: return observationError(args)
-        } else {
-            null
-        }
-        return deviceController.clearText(index = index, observation = observation, displayId = currentActiveDisplayId())
-    }
-
-    private fun setClipboard(args: JSONObject): String =
-        deviceController.clipboardSet(requireContext(), args.requiredText("text"))
-
-    private fun getClipboard(): String =
-        deviceController.clipboardGet(requireContext())
-
-    private fun pasteText(args: JSONObject): String =
-        deviceController.pasteText(args.requiredText("text"), currentActiveDisplayId())
-
-    private fun waitForText(args: JSONObject): String =
-        deviceController.waitForText(
-            text = args.requiredText("text"),
-            timeoutMs = args.optInt("timeout_ms", 10_000),
-            includeDesc = args.optBoolean("include_desc", true),
-            matchMode = args.optString("match", "contains"),
-            displayId = currentActiveDisplayId(),
-        )
-
-    private fun waitForPackage(args: JSONObject): String =
-        deviceController.waitForPackage(
-            packageName = args.optString("package_name"),
-            timeoutMs = args.optInt("timeout_ms", 10_000),
-            displayId = currentActiveDisplayId(),
-        )
-
-    /**
-     * 坐标系必须显式声明。旧版按"上一次观察是否带截图"隐式切换默认值，模型无从得知，
-     * 经常把截图像素当成屏幕像素；缺省时直接报参数错误，让模型在下一步改正。
-     */
-    private fun convertPoint(
-        x: Int,
-        y: Int,
-        coordinateSpace: String,
-        displayId: Int = Display.DEFAULT_DISPLAY,
-    ): ScreenPoint {
-        val space = publishedObservation.get().coordinateSpace
-        val requestedSpace = coordinateSpace.trim().lowercase(Locale.ROOT)
-        if (requestedSpace.isBlank()) {
-            throw InvalidToolArgumentException(
-                "缺少 coordinate_space：看截图定位用 normalized（0–999），坐标来自 ui_nodes 用 screen",
-            )
-        }
-        if (requestedSpace == "normalized") {
-            if (x !in 0..NORMALIZED_MAX || y !in 0..NORMALIZED_MAX) {
-                throw InvalidToolArgumentException("normalized 坐标必须在 0–$NORMALIZED_MAX 之间：($x,$y)")
-            }
-            val (width, height) = space?.let { it.screenWidth to it.screenHeight }
-                ?: deviceController.screenDimensions(displayId)
-            return ScreenPoint(
-                x = (x.toLong() * (width - 1) / NORMALIZED_MAX).toInt(),
-                y = (y.toLong() * (height - 1) / NORMALIZED_MAX).toInt(),
-            )
-        }
-        if (requestedSpace == "screen") {
-            val (width, height) = space?.let { it.screenWidth to it.screenHeight }
-                ?: deviceController.screenDimensions(displayId)
-            if (x !in 0 until width || y !in 0 until height) {
-                throw InvalidToolArgumentException(
-                    "屏幕坐标超出范围：($x,$y) not in ${width}x$height",
-                )
-            }
-            return ScreenPoint(x, y)
-        }
-        if (requestedSpace != "screenshot") {
-            throw InvalidToolArgumentException("coordinate_space 只能是 normalized、screen 或 screenshot")
-        }
-        if (space == null) {
-            throw InvalidToolArgumentException(
-                "最近一次观察没有附图，没有 screenshot 坐标系；看截图定位请用 normalized，或先带截图重新观察",
-            )
-        }
-        val point = runCatching { space.fromScreenshot(x, y) }
-            .getOrElse { throwable ->
-                throw InvalidToolArgumentException(
-                    throwable.message ?: "截图坐标超出范围",
-                )
-            }
-        return ScreenPoint(point.x, point.y)
+        return json.toString()
     }
 
     private fun searchApps(args: JSONObject): String {
@@ -884,51 +492,20 @@ internal class AgentLocalTools(
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 
         checkCancellation()
-        activeDisplayId = Display.DEFAULT_DISPLAY
         context.startActivity(launchIntent)
-        val finalDisplayId = Display.DEFAULT_DISPLAY
-
-        val verification = AppLaunchVerification.awaitWindow(
-            packageName = app.packageName,
-            displayId = finalDisplayId,
-            query = { remainingMillis ->
-                AgentAccessibilityService.current()?.observeNodeSnapshot(
-                    maxNodes = 1,
-                    displayId = finalDisplayId,
-                    includeNodes = false,
-                    timeoutMillis = remainingMillis,
-                ) ?: AgentAccessibilityService.NodeSnapshotObservation(
-                    status = AgentAccessibilityService.NodeSnapshotStatus.SERVICE_UNAVAILABLE,
-                    snapshot = null,
-                    window = null,
-                )
-            },
-            checkCancellation = ::checkCancellation,
-        )
-        logger.info(
-            "Agent local tool action=launch_app outcome=${verification.launchStatus} " +
-                "canvas=main display=$finalDisplayId",
-        )
+        logger.info("Agent local tool action=launch_app outcome=submitted canvas=main")
         return JSONObject()
             .put("ok", true)
             .put("tool", "launch_app")
             .put("app_name", app.appName)
             .put("package_name", app.packageName)
             .put("canvas", "main")
-            .put("display_id", finalDisplayId)
-            .put("launch_status", verification.launchStatus)
-            .put("window_observation", verification.toJson())
-            .apply {
-                if (!verification.confirmed) {
-                    put("note", "启动请求已提交，但尚未确认目标窗口；请先观察当前画布，不要直接重放启动或点击")
-                }
-            }
+            .put("launch_status", "submitted")
             .toString()
     }
 
     private fun presentToUser(args: JSONObject): String {
         val reason = args.optString("reason").trim()
-        activeDisplayId = Display.DEFAULT_DISPLAY
         return JSONObject()
             .put("ok", true)
             .put("tool", "present_to_user")
@@ -957,7 +534,6 @@ internal class AgentLocalTools(
             return errorResult("NO_ACTIVITY", "没有应用可以处理该 URI")
         }
         checkCancellation()
-        activeDisplayId = Display.DEFAULT_DISPLAY
         context.startActivity(intent)
         logger.info("Agent local tool action=open_uri outcome=started canvas=main")
         return JSONObject()
@@ -1056,38 +632,6 @@ internal class AgentLocalTools(
 
     private fun JSONObject.optNullableInt(name: String): Int? =
         if (has(name) && !isNull(name)) optInt(name) else null
-
-    private fun requireElementObservation(
-        args: JSONObject,
-    ): AccessibilityDeviceController.ElementObservation? {
-        val current = publishedObservation.get().elements ?: return null
-        val requestedId = args.optString("observation_id").trim()
-        return current.takeIf {
-            ObservationReferencePolicy.validate(current.id, requestedId) ==
-                ObservationReferencePolicy.Status.MATCH
-        }
-    }
-
-    private fun observationError(args: JSONObject): String {
-        val current = publishedObservation.get().elements
-        val requestedId = args.optString("observation_id").trim()
-        return when (ObservationReferencePolicy.validate(current?.id, requestedId)) {
-            ObservationReferencePolicy.Status.NO_OBSERVATION ->
-                errorResult("NO_OBSERVATION", "请先调用 observe_screen 获取 UI 节点")
-            ObservationReferencePolicy.Status.ID_REQUIRED -> errorResult(
-                "OBSERVATION_ID_REQUIRED",
-                "节点动作必须携带同一次 observe_screen 返回的 observation_id",
-            )
-            ObservationReferencePolicy.Status.STALE -> errorResult(
-                "STALE_OBSERVATION",
-                "observation_id=$requestedId 已过期；当前为 ${current?.id}，请重新观察屏幕",
-            )
-            ObservationReferencePolicy.Status.MATCH -> errorResult(
-                "OBSERVATION_ERROR",
-                "观察快照状态异常，请重新观察屏幕",
-            )
-        }
-    }
 
     // ==================== Skills tools ====================
 
@@ -1536,56 +1080,13 @@ internal class AgentLocalTools(
     private fun textResult(content: String): AgentModelClient.ToolResult =
         AgentModelClient.ToolResult(content)
 
-    private data class ScreenPoint(val x: Int, val y: Int)
-
     private class InvalidToolArgumentException(message: String) : IllegalArgumentException(message)
-
-    private data class PublishedObservation(
-        val elements: AccessibilityDeviceController.ElementObservation? = null,
-        val coordinateSpace: AccessibilityDeviceController.CoordinateSpace? = null,
-        val generation: Long? = null,
-    )
 
     private data class GitHubInspectionSnapshot(
         val commitSha: String,
         val prefix: String?,
         val candidatesByPath: Map<String, String>,
     )
-
-    /** 手势经过状态胶囊时让它暂时穿透并淡出。 */
-    private fun <T> clearOverlay(displayId: Int, vararg points: ScreenPoint, gesture: () -> T): T {
-        val area = Rect(
-            points.minOf { it.x },
-            points.minOf { it.y },
-            points.maxOf { it.x } + 1,
-            points.maxOf { it.y } + 1,
-        )
-        return AgentOverlayClearance.around(area, gesture)
-    }
-
-    private fun showTap(x: Int, y: Int, displayId: Int = Display.DEFAULT_DISPLAY) {
-        GestureIndicator.showTap(context, x, y)
-    }
-
-    private fun showLongPress(
-        x: Int,
-        y: Int,
-        durationMs: Int,
-        displayId: Int = Display.DEFAULT_DISPLAY,
-    ) {
-        GestureIndicator.showLongPress(context, x, y, durationMs)
-    }
-
-    private fun showSwipe(
-        x1: Int,
-        y1: Int,
-        x2: Int,
-        y2: Int,
-        durationMs: Int,
-        displayId: Int = Display.DEFAULT_DISPLAY,
-    ) {
-        GestureIndicator.showSwipe(context, x1, y1, x2, y2, durationMs)
-    }
 
     private data class AppInfo(
         val packageName: String,
@@ -1621,17 +1122,6 @@ internal class AgentLocalTools(
             DEVICE_DIRECT_TOOL_NAMES + DEVICE_SENSITIVE_READ_TOOL_NAMES +
                 DEVICE_SENSITIVE_ACTION_TOOL_NAMES
         val MEMORY_TOOL_NAMES = setOf("memory_get", "memory_write")
+        const val MAX_CLIPBOARD_TEXT_CHARS = 1_000
     }
 }
-
-private val AFTER_ACTION_OPTIONS = AgentScreenObservationContract.Options(
-    includeScreenshot = false,
-    includeUiTree = true,
-    maxNodes = 30,
-)
-
-/** append 超过该长度改走粘贴路径；逐字键入的增量重建对长文本既慢又容易被输入法打断。 */
-private const val TYPE_TEXT_INCREMENTAL_CHARS = 200
-
-/** 归一化坐标上界：0–999，与主流 GUI 模型的输出习惯一致。 */
-private const val NORMALIZED_MAX = 999

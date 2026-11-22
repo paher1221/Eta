@@ -43,7 +43,6 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
 import io.github.mangi.eta.agent.media.AgentImageCodec
 import io.github.mangi.eta.agent.overlay.AgentHapticFeedback
 import io.github.mangi.eta.agent.overlay.AgentOverlayGlow
@@ -1170,8 +1169,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
 
     private fun showOverlay() {
         if (capsuleView != null) return
-        // TYPE_ACCESSIBILITY_OVERLAY 免 SYSTEM_ALERT_WINDOW 权限；仅回退态（无障碍未启用）才需检查
-        if (AgentAccessibilityService.current() == null && !Settings.canDrawOverlays(this)) return
+        if (!Settings.canDrawOverlays(this)) return
         val wm = overlayContext().getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         windowManager = wm
 
@@ -1388,7 +1386,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
                     appearance = appearance,
                     systemOverlay = true,
                 ) {
-                    // 部分 ROM 会给 TYPE_ACCESSIBILITY_OVERLAY 分配软件 Canvas；Miuix 与 COUI 的
+                    // 部分 ROM 会给系统浮层分配软件 Canvas；Miuix 与 COUI 的
                     // RuntimeShader 只检查系统版本，因此系统浮层统一使用无 RuntimeShader 的圆角回退。
                     CompositionLocalProvider(
                         LocalSquircleEnabled provides false,
@@ -1449,16 +1447,9 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
         }
 
-    private fun overlayType(): Int =
-        // 无障碍服务可用时用 TYPE_ACCESSIBILITY_OVERLAY（免 SYSTEM_ALERT_WINDOW 权限，且截图
-        // filterValidWindows 可过滤）；需用无障碍服务 context 创建，否则 BadTokenException
-        if (AgentAccessibilityService.current() != null)
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-        else
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+    private fun overlayType(): Int = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
-    private fun overlayContext(): Context =
-        AgentAccessibilityService.current() ?: this
+    private fun overlayContext(): Context = this
 
     @Suppress("DEPRECATION")
     private fun glowLayoutParams(): WindowManager.LayoutParams {
@@ -1481,7 +1472,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
             PixelFormat.TRANSLUCENT
         ).apply {
             // 全屏覆盖（含状态栏/导航栏），触摸穿透不拦截页面操作；
-            // TYPE_ACCESSIBILITY_OVERLAY 让 takeScreenshotOfWindow 过滤掉，对 Agent 透明
             gravity = Gravity.TOP or Gravity.START
             x = 0
             y = 0
@@ -1550,7 +1540,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
             capsuleExpanded.value = false
             removeAmbientWindows()
             publishExecutionState()
-            if (windowManager == null && (AgentAccessibilityService.current() != null || Settings.canDrawOverlays(this))) {
+            if (windowManager == null && Settings.canDrawOverlays(this)) {
                 windowManager = overlayContext().getSystemService(Context.WINDOW_SERVICE) as? WindowManager
             }
             windowManager?.let(::showResultCard) ?: dismissAndStop()

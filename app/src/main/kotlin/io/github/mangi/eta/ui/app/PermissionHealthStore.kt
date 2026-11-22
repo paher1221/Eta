@@ -8,7 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
 import io.github.mangi.eta.agent.device.DeviceLocationProvider
 import io.github.mangi.eta.ui.model.PermissionHealthItemUi
 import io.github.mangi.eta.ui.model.PermissionHealthUiState
@@ -45,7 +44,6 @@ private fun buildPermissionHealthState(context: Context): PermissionHealthUiStat
     val backgroundRunningEnabled = isIgnoringBatteryOptimizations(context)
     val overlayEnabled = Settings.canDrawOverlays(context)
     val appListEnabled = hasAppListAccess(context)
-    val accessibilityEnabled = isAgentAccessibilityEnabled(context) || AgentAccessibilityService.isAvailable()
     val notificationsEnabled = context.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled()
     val locationAccess = DeviceLocationProvider.accessState(context)
     val notificationHistoryEnabled = io.github.mangi.eta.agent.device.AgentNotificationHistoryService.isEnabled(context)
@@ -130,13 +128,6 @@ private fun buildPermissionHealthState(context: Context): PermissionHealthUiStat
                 primaryActionLabel = if (usageAccessEnabled) null else context.getString(R.string.state_ui_to_authorize_762ec4),
             ),
             PermissionHealthItemUi(
-                id = "accessibility",
-                title = context.getString(R.string.state_accessibility_permissions_f80103),
-                summary = "",
-                status = if (accessibilityEnabled) PermissionStatusUi.Available else PermissionStatusUi.Missing,
-                primaryActionLabel = if (accessibilityEnabled) null else context.getString(R.string.state_ui_to_open_13ec17),
-            ),
-            PermissionHealthItemUi(
                 id = "notifications",
                 title = context.getString(R.string.capability_notifications_title),
                 summary = context.getString(R.string.capability_notifications_summary),
@@ -147,17 +138,6 @@ private fun buildPermissionHealthState(context: Context): PermissionHealthUiStat
     )
 }
 
-private fun isAgentAccessibilityEnabled(context: Context): Boolean {
-    val expected = ComponentName(
-        context,
-        AgentAccessibilityService::class.java,
-    ).flattenToString()
-    val enabledServices = Settings.Secure.getString(
-        context.contentResolver,
-        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-    ).orEmpty()
-    return enabledServices.split(':').any { it.equals(expected, ignoreCase = true) }
-}
 
 private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
     val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager

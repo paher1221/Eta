@@ -44,7 +44,7 @@ class AgentRoleplayRuntimeTest {
             val names = (0 until request.tools.length()).map {
                 request.tools.getJSONObject(it).getJSONObject("function").getString("name")
             }
-            assertTrue("observe_screen" in names)
+            assertTrue("set_clipboard" in names)
             assertTrue("memory_get" in names)
             assertFalse("memory_write" in names)
             assertTrue(CharacterMemoryTools.WRITE in names)

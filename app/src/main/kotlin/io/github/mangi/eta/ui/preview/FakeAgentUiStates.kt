@@ -120,13 +120,6 @@ internal object FakeAgentUiStates {
     val permissionHealth = PermissionHealthUiState(
         items = listOf(
             PermissionHealthItemUi(
-                id = "accessibility",
-                title = "无障碍服务",
-                summary = "已启用，Agent 可操作 UI",
-                status = PermissionStatusUi.Available,
-                primaryActionLabel = null,
-            ),
-            PermissionHealthItemUi(
                 id = "overlay",
                 title = "悬浮窗权限",
                 summary = "已授权，可显示运行浮窗",

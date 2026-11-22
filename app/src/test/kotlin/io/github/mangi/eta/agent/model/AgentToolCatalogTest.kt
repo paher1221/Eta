@@ -29,7 +29,7 @@ class AgentToolCatalogTest {
         assertEquals(base.size, baseTools.size)
         assertTrue(
             base.containsAll(
-                setOf("observe_screen", "skills_list", "skills_read", "skills_read_resource"),
+                setOf("set_clipboard", "skills_list", "skills_read", "skills_read_resource"),
             ),
         )
         assertFalse("browser_use" in base)
@@ -66,83 +66,9 @@ class AgentToolCatalogTest {
     }
 
     @Test
-    fun elementToolsRequireObservationIdFromTheSameObservation() {
-        val tools = AgentToolCatalog.build(terminalTools = false, browserTools = false)
-
-        listOf("tap_element", "long_press_element", "scroll_element").forEach { name ->
-            val function = tools.function(name)
-            val parameters = function.getJSONObject("parameters")
-            val properties = parameters.getJSONObject("properties")
-
-            assertEquals("string", properties.getJSONObject("observation_id").getString("type"))
-            assertTrue("observation_id must be required for $name", "observation_id" in parameters.requiredNames())
-            assertTrue(function.getString("description").contains("同一次"))
-            assertTrue(function.getString("description").contains("observe_screen"))
-            assertTrue(function.getString("description").contains("重新观察"))
-        }
-    }
-
-    @Test
-    fun screenObservationDefaultsToTreeAndDescribesVisualEscalation() {
-        val function = AgentToolCatalog.build(
-            terminalTools = false,
-            browserTools = false,
-        ).function("observe_screen")
-        val properties = function.getJSONObject("parameters").getJSONObject("properties")
-
-        assertFalse(properties.getJSONObject("include_screenshot").getBoolean("default"))
-        assertTrue(properties.getJSONObject("include_ui_tree").getBoolean("default"))
-        assertEquals(60, properties.getJSONObject("max_nodes").getInt("default"))
-        assertEquals(1, properties.getJSONObject("max_nodes").getInt("minimum"))
-        assertEquals(120, properties.getJSONObject("max_nodes").getInt("maximum"))
-        assertTrue(function.getString("description").contains("默认只返回"))
-        assertTrue(function.getString("description").contains("include_screenshot=true"))
-        assertTrue(function.getString("description").contains("保持 include_ui_tree=true"))
-        assertTrue(function.getString("description").contains("禁止把新截图与旧节点混用"))
-    }
-
-    @Test
-    fun scrollDirectionsUseContentBrowsingSemantics() {
-        val tools = AgentToolCatalog.build(terminalTools = false, browserTools = false)
-        val expectedDirections = listOf("up", "down", "left", "right")
-
-        listOf("scroll", "scroll_element").forEach { name ->
-            val function = tools.function(name)
-            val directions = function
-                .getJSONObject("parameters")
-                .getJSONObject("properties")
-                .getJSONObject("direction")
-                .getJSONArray("enum")
-                .stringValues()
-
-            assertEquals(expectedDirections, directions)
-            assertTrue(function.getString("description").contains("down 显示下方内容"))
-            assertTrue(function.getString("description").contains("up 显示上方内容"))
-        }
-    }
-
-    @Test
-    fun typeTextReplacesLegacyTextToolsAndDescribesObservationPairing() {
-        val tools = AgentToolCatalog.build(terminalTools = false, browserTools = false)
-        val names = (0 until tools.length()).map { tools.getJSONObject(it).getJSONObject("function").getString("name") }
-        listOf("input_text", "replace_text", "clear_text", "paste_text").forEach { legacy ->
-            assertFalse("$legacy 不再向模型暴露", legacy in names)
-        }
-
-        val function = tools.function("type_text")
-        val parameters = function.getJSONObject("parameters")
-        val properties = parameters.getJSONObject("properties")
-        assertEquals(listOf("text"), parameters.requiredNames().toList())
-        assertEquals(listOf("replace", "append"), properties.getJSONObject("mode").getJSONArray("enum").stringValues())
-        assertEquals("boolean", properties.getJSONObject("submit").getString("type"))
-        assertTrue(properties.getJSONObject("index").getString("description").contains("observation_id"))
-    }
-
-    @Test
     fun textToolsDeclareTheSameLimitsAsRuntime() {
         val tools = AgentToolCatalog.build(terminalTools = false, browserTools = false)
 
-        assertEquals(4_000, tools.maxTextLength("type_text"))
         assertEquals(20_000, tools.maxTextLength("set_clipboard"))
     }
 

@@ -6,7 +6,6 @@
     <string name="run_waiting_for_gui">Waiting for phone control</string>
     <string name="run_gui_user_paused">User has control</string>
     <string name="tool_release_gui">Release phone control</string>
-    <string name="tool_release_gui_description">Finish the current phone interaction and hand control to waiting tasks.</string>
     <string name="tool_present_to_user">Present to main screen</string>
     <string name="tool_present_to_user_description">Seamlessly hand off the prepared virtual display page to the physical main screen.</string>
     <string name="settings_virtual_display_title">Background virtual display</string>
@@ -24,8 +23,6 @@
   <string name="settings_language">Language</string>
   <string name="settings_language_system">Follow system</string>
   <string name="app_name">Eta</string>
-  <string name="agent_accessibility_label">Eta Agent</string>
-  <string name="agent_accessibility_description">Read screen content and perform taps, swipes, text input, and other actions to help the agent complete tasks.</string>
   <string name="notification_history_service_label">Eta notification history</string>
   <string name="voice_interaction_service_label">Eta</string>
   <string name="recognition_service_label">Eta speech recognition</string>
@@ -357,7 +354,6 @@
   <string name="ui_disabled_0fe5a9">Disabled</string>
   <string name="ui_removed_4e5c49">Removed</string>
   <string name="ui_edited_c36776">Edited</string>
-  <string name="ui_enforce_accessibility_55e838">Enforce accessibility</string>
   <string name="ui_current_25e74d">current</string>
   <string name="ui_current_model_a0af8f">current model</string>
   <string name="ui_restore_automatic_8d4e1e">Restore automatic</string>
@@ -375,7 +371,6 @@
   <string name="ui_new_anthropic_db6098">Add Anthropic provider</string>
   <string name="ui_added_openai_compatible_6bd471">Add OpenAI-compatible provider</string>
   <string name="ui_add_new_provider_74df54">Add new provider</string>
-  <string name="ui_accessibility_enhancement_tools_8fd257">Accessibility enhancement tools</string>
   <string name="ui_no_skills_installed_yet_4e960f">No Skills installed yet</string>
   <string name="ui_replace_user_skills_250e98">Replace Skill?</string>
   <string name="ui_how_can_i_help_you_e75391">How can I help you?</string>
@@ -534,7 +529,6 @@
   <string name="state_unable_to_continue_installation_136d7c">Unable to continue installation</string>
   <string name="state_unable_to_read_skills_599082">Unable to read skills</string>
   <string name="state_unable_to_read_skill_pack_a53563">Unable to read skill pack</string>
-  <string name="state_accessibility_permissions_f80103">Accessibility permissions</string>
   <string name="state_replacement_confirmation_has_expired_please_select_t_fce9f2">Replacement confirmation has expired, please select the ZIP file again.</string>
   <string name="state_core_memory_is_automatically_injected_and_detailed_c_07232b">Core memory is automatically injected, and detailed content is retrieved by the model on demand.</string>
   <string name="state_model_increments_tool_calls_and_final_results_are_sy_3f2321">Model increments, tool calls, and final results are synced to the current session</string>
@@ -634,7 +628,6 @@
   <string name="page_reset_session_911448">Reset session</string>
   <string name="page_requires_root_and_magisk_kernelsu_or_apatch_busybox_47166a">Requires Root and Magisk, KernelSU or APatch BusyBox</string>
   <string name="page_abnormal_5caf27">abnormal</string>
-  <string name="page_accessibility_protection_request_was_denied_by_the_s_34c699">Accessibility protection request was denied by the system</string>
   <string name="page_add_to_94191c">Add to</string>
   <string name="page_authorized_284cc0">Authorized</string>
   <string name="page_base_url_must_be_a_valid_http_s_address_0e7d58">Base URL must be a valid HTTP(S) address</string>
@@ -688,7 +681,6 @@
   <string name="page_system_default_assistant_576746">System default assistant</string>
   <string name="page_take_a_screenshot_and_describe_the_current_screen_555fbd">Take a screenshot and describe the current screen</string>
   <string name="page_testing_f43705">Testing...</string>
-  <string name="page_the_accessibility_protection_backend_is_unavailable__e50b64">The accessibility protection backend is unavailable, please confirm that the system scope is enabled and restart</string>
   <string name="page_the_installation_is_complete_and_will_take_effect_af_82329a">The installation is complete and will take effect after restarting.</string>
   <string name="page_there_is_currently_no_model_provider_please_add_one_78ab6a">There is currently no model provider, please add one.</string>
   <string name="page_this_message_and_subsequent_content_will_be_replaced_086779">This message and subsequent content will be replaced after sending</string>
@@ -731,8 +723,6 @@
   <string name="tool_ui_recording_summary_2fe550">Recording summary</string>
   <string name="tool_ui_wechat_chat_pictures_72b268">WeChat chat pictures</string>
   <string name="tool_ui_open_app_7c65e7">Open App</string>
-  <string name="tool_ui_open_the_notification_bar_quick_settings_and_oth_5e51cf">Open the notification bar, quick settings and other panels</string>
-  <string name="tool_ui_perform_up_down_left_and_right_swipe_gestures_3ef0de">Perform up, down, left, and right swipe gestures</string>
   <string name="tool_ui_execute_command_bf1627">execute command</string>
   <string name="tool_ui_give_the_current_web_page_viewport_to_the_visual_f62274">Give the current web page viewport to the visual model</string>
   <string name="tool_ui_explicitly_hand_over_links_or_deep_links_to_exte_35ff26">Explicitly hand over links or deep links to external applications</string>
@@ -740,13 +730,10 @@
   <string name="tool_ui_search_text_messages_by_sender_or_text_keywords_e14363">Search text messages by sender or text keywords</string>
   <string name="tool_ui_retrieve_calls_by_number_or_contact_name_2ce431">Retrieve calls by number or contact name</string>
   <string name="tool_ui_query_installed_applications_by_name_or_package__32b004">Query installed applications by name or package name</string>
-  <string name="tool_ui_click_by_coordinate_area_2ad961">Click by coordinate area</string>
   <string name="tool_ui_set_by_media_alarm_clock_ringtone_and_other_chan_3fcc3e">Set by media, alarm clock, ringtone and other channels</string>
   <string name="tool_ui_retrieve_pictures_by_file_name_or_album_path_c08236">Retrieve pictures by file name or album path</string>
-  <string name="tool_ui_click_on_the_most_recently_observed_node_b4cf5a">Click on the most recently observed node</string>
   <string name="tool_ui_search_events_by_title_location_or_description_1afd77">Search events by title, location or description</string>
   <string name="tool_ui_search_audio_by_title_filename_or_author_82e20d">Search audio by title, filename or author</string>
-  <string name="tool_ui_button_02eafa">button</string>
   <string name="tool_ui_extract_rendered_text_lists_and_links_8bdcdd">Extract rendered text, lists and links</string>
   <string name="tool_ui_search_apps_897fdf">Search apps</string>
   <string name="tool_ui_play_pause_and_switch_songs_without_operating_th_311cb8">Play, pause, and switch songs without operating the interface</string>
@@ -774,11 +761,6 @@
   <string name="tool_ui_retrieve_contact_name_and_open_address_6dacc5">Retrieve contact name and open address</string>
   <string name="tool_ui_summarize_steps_sleep_exercise_and_body_metrics_6ff66f">Summarize steps, sleep, exercise and body metrics</string>
   <string name="tool_ui_activity_timer_36f107">Activity timer</string>
-  <string name="tool_ui_slide_3723aa">slide</string>
-  <string name="tool_ui_scroll_220e68">scroll</string>
-  <string name="tool_ui_scroll_the_page_or_specify_a_node_83ab24">Scroll the page or specify a node</string>
-  <string name="tool_ui_click_element_7a3d91">click element</string>
-  <string name="tool_ui_click_area_cbaa08">click area</string>
   <string name="tool_ui_open_with_app_32c24e">Open with app</string>
   <string name="tool_ui_directly_create_system_timers_up_to_24_hours_87c476">Directly create system timers up to 24 hours</string>
   <string name="tool_ui_create_a_system_alarm_directly_and_open_the_cloc_9aa214">Create a system alarm directly, and open the clock to confirm if it fails.</string>
@@ -787,15 +769,11 @@
   <string name="tool_ui_album_pictures_23bcc2">Album pictures</string>
   <string name="tool_ui_short_message_17e1a4">Short message</string>
   <string name="tool_ui_open_web_pages_off_screen_and_keep_a_takeover_br_72972e">Open web pages off-screen and keep a takeover browsing session</string>
-  <string name="tool_ui_wait_for_the_specified_text_to_appear_on_the_scr_43f9b0">Wait for the specified text to appear on the screen</string>
-  <string name="tool_ui_wait_for_text_9e9a54">Wait for text</string>
   <string name="tool_ui_system_recording_15eb19">System recording</string>
   <string name="tool_ui_system_log_096733">System log</string>
-  <string name="tool_ui_system_panel_b0f7a3">System panel</string>
   <string name="tool_ui_network_switch_834347">network switch</string>
   <string name="tool_ui_network_status_6bd556">network status</string>
   <string name="tool_ui_web_page_interaction_331b3f">Web page interaction</string>
-  <string name="tool_ui_watch_the_screen_e70f2a">Watch the screen</string>
   <string name="tool_ui_device_status_567a4c">Device status</string>
   <string name="tool_ui_equipment_environment_1026ec">Equipment environment</string>
   <string name="tool_ui_set_timer_aee60c">Set timer</string>
@@ -803,7 +781,6 @@
   <string name="tool_ui_set_volume_85a691">Set volume</string>
   <string name="tool_ui_read_pictures_ae993b">Read pictures</string>
   <string name="tool_ui_read_pictures_of_known_paths_and_hand_them_over__7f9569">Read pictures of known paths and hand them over to the visual model for interpretation</string>
-  <string name="tool_ui_read_the_current_node_and_attach_the_original_im_df1fec">Read the current node and attach the original image if necessary</string>
   <string name="tool_ui_read_the_current_notification_title_and_text_0faee7">Read the current notification title and text</string>
   <string name="tool_ui_read_the_network_credentials_saved_by_the_phone_96d43a">Read the network credentials saved by the phone</string>
   <string name="tool_ui_read_the_contents_of_mobile_phone_files_bf3066">Read the contents of mobile phone files</string>
@@ -820,14 +797,9 @@
   <string name="tool_ui_read_notification_7fdc09">read notification</string>
   <string name="tool_ui_read_lock_screen_do_not_disturb_audio_output_and_9260b8">Read lock screen, do not disturb, audio output and external screen status</string>
   <string name="tool_ui_read_verification_code_7d1121">Read verification code</string>
-  <string name="tool_ui_enter_text_ae47ab">Enter text</string>
-  <string name="tool_ui_type_text_summary">Replace, append or clear text and optionally submit; the result is read back</string>
-  <string name="tool_ui_system_buttons_such_as_return_homepage_recent_ta_1b4cf0">System buttons such as return, homepage, recent tasks, etc.</string>
   <string name="tool_ui_notification_history_95d015">Notification history</string>
   <string name="tool_ui_address_book_9070cb">Address book</string>
   <string name="tool_ui_call_history_88e57b">call history</string>
-  <string name="tool_ui_long_press_f7a417">Long press</string>
-  <string name="tool_ui_long_press_on_coordinates_or_elements_796384">Long press on coordinates or elements</string>
   <string name="tool_ui_alarm_clock_schedule_acae32">alarm clock schedule</string>
   <string name="tool_ui_read_web_pages_4f0bb9">read web pages</string>
   <string name="tool_ui_audio_file_1ccf2e">audio file</string>
@@ -887,8 +859,6 @@
   <string name="status_unauthorized">Not authorized</string>
   <string name="status_enabled">Enabled</string>
   <string name="status_disabled">Disabled</string>
-  <string name="accessibility_protection_unavailable">The accessibility protection backend is unavailable. Enable the system scope and restart</string>
-  <string name="accessibility_protection_rejected">The system rejected the accessibility protection request</string>
   <string name="settings_write_failed">Couldn\'t save settings</string>
   <string name="status_processing">Processing…</string>
   <string name="power_assistant_system_default">System default assistant</string>

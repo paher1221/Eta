@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
 import io.github.mangi.eta.agent.device.AgentNotificationHistoryService
 import java.util.Locale
 import org.json.JSONArray
@@ -13,7 +12,6 @@ import org.json.JSONArray
 internal data class AgentToolCapabilities(
     // Root 相关能力已整体移除，恒为 false；保留字段以兼容提示词与工具目录的既有签名。
     val rootAvailable: Boolean = false,
-    val accessibilityAvailable: Boolean = true,
     val notificationsAllowed: Boolean = true,
     val usageAllowed: Boolean = true,
     val locationAllowed: Boolean = true,
@@ -29,9 +27,6 @@ internal data class AgentToolCapabilities(
         if (name in setOf("get_flashlight", "set_flashlight") && !flashlightAvailable) return "DEVICE_UNSUPPORTED"
         if (name in setOf("get_hotspot", "set_hotspot") && !hotspotAvailable) return "DEVICE_UNSUPPORTED"
         val requirement = AgentToolRequirements.find(name) ?: return "UNKNOWN_TOOL"
-        if (requirement.accessibility && !accessibilityAvailable) {
-            return "ACCESSIBILITY_UNAVAILABLE"
-        }
         return when (requirement.systemAccess) {
             ToolSystemAccess.CALENDAR_READ -> if (calendarReadable) null else "CALENDAR_PERMISSION_REQUIRED"
             ToolSystemAccess.CALENDAR_WRITE -> if (calendarWritable) null else "CALENDAR_PERMISSION_REQUIRED"
@@ -61,7 +56,6 @@ internal data class AgentToolCapabilities(
 
         fun capture(context: Context): AgentToolCapabilities {
             return AgentToolCapabilities(
-                accessibilityAvailable = AgentAccessibilityService.isAvailable(),
                 notificationsAllowed = AgentNotificationHistoryService.isEnabled(context),
                 usageAllowed = AgentPersonalContextTools.hasUsageAccess(context),
                 locationAllowed = context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==

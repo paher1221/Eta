@@ -607,11 +607,6 @@ fun AgentAppRoot(
                                             LOCAL_NETWORK_PERMISSION_ITEM_ID -> requestLocalNetworkPermission()
                                             "calendar" -> locationPermissionLauncher.launch(io.github.mangi.eta.agent.device.CalendarPermissions.requested)
                                             "notification_policy" -> context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
-                                            "accessibility" -> {
-                                                runCatching {
-                                                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                                                }
-                                            }
                                             "overlay" -> {
                                                 runCatching {
                                                     context.startActivity(
@@ -1170,7 +1165,6 @@ fun AgentAppRoot(
 private val CorePermissionAttentionIds = setOf(
     "background",
     "overlay",
-    "accessibility",
     "notifications",
 )
 

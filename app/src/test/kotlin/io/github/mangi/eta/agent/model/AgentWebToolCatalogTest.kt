@@ -1,15 +1,16 @@
 package io.github.mangi.eta.agent.model
 
 import io.github.mangi.eta.agent.tool.AgentToolRequirements
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AgentWebToolCatalogTest {
     @Test
-    fun publicWebToolsNeedNeitherRootNorAccessibility() {
+    fun publicWebToolsAreRegisteredWithoutExtraAuthorization() {
         listOf("web_search", "fetch_url").forEach { name ->
             val requirement = requireNotNull(AgentToolRequirements.find(name))
-            assertEquals(false, requirement.accessibility)
+            assertTrue(requirement.systemAccess == AgentToolRequirements.ToolSystemAccess.NONE)
+            assertTrue(!requirement.gui)
         }
     }
 

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.AccessibilityNew
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BrightnessHigh
@@ -62,9 +61,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.mangi.eta.BuildConfig
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
 import io.github.mangi.eta.agent.voice.AssistantRoleHelper
 import io.github.mangi.eta.agent.voice.AssistantRoleStatus
+import io.github.mangi.eta.agent.voice.DefaultAssistantOwner
 import io.github.mangi.eta.config.Prefs
 import io.github.mangi.eta.core.ModuleConfig
 import io.github.mangi.eta.data.model.AppearanceUiStyle
@@ -154,7 +153,6 @@ private fun SettingsIcon(
 
 private data class SettingsSystemStatus(
     val overlayGranted: Boolean = false,
-    val accessibilityGranted: Boolean = false,
     val assistantRoleStatus: AssistantRoleStatus = AssistantRoleStatus(isDefaultAssistant = false),
 )
 
@@ -188,7 +186,6 @@ private fun SettingsPageContent(
         mutableStateOf(cachedSettingsSystemStatus ?: SettingsSystemStatus())
     }
     val overlayGranted = systemStatus.overlayGranted
-    val accessibilityGranted = systemStatus.accessibilityGranted
     val assistantRoleStatus = systemStatus.assistantRoleStatus
 
     // 关于组：版本信息与更新检查。结果对话框在列表外渲染，状态需要页面级 owner。
@@ -385,7 +382,6 @@ private fun SettingsPageContent(
             val snapshot = withContext(Dispatchers.IO) {
                 SettingsSystemStatus(
                     overlayGranted = android.provider.Settings.canDrawOverlays(context),
-                    accessibilityGranted = isAgentAccessibilityEnabled(context),
                     assistantRoleStatus = AssistantRoleHelper.queryStatus(context),
                 )
             }
@@ -726,27 +722,6 @@ private fun SettingsPageContent(
                             },
                         )
                     }
-                    val accEnabled = accessibilityGranted || AgentAccessibilityService.isAvailable()
-                    item {
-                        CouiPreference(
-                            title = stringResource(R.string.ui_accessibility_enhancement_tools_8fd257),
-                            value = stringResource(
-                                if (accEnabled) R.string.status_enabled else R.string.status_disabled,
-                            ),
-                            valueColor = if (accEnabled) pageColors.summary else pageColors.accent,
-                            icon = {
-                                CouiSettingsIcon(
-                                    Icons.Rounded.AccessibilityNew,
-                                    SettingsIconColors.Blue,
-                                )
-                            },
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                                }
-                            },
-                        )
-                    }
                 }
 
                 CouiPreferenceGroup(title = stringResource(R.string.ui_about_bed172)) {
@@ -1062,31 +1037,6 @@ private fun SettingsPageContent(
                                 }
                             },
                         )
-                        ArrowPreference(
-                            title = stringResource(R.string.ui_accessibility_enhancement_tools_8fd257),
-                            startAction = { SettingsIcon(Icons.Rounded.AccessibilityNew) },
-                            endActions = {
-                                val enabled = accessibilityGranted || AgentAccessibilityService.isAvailable()
-                                Text(
-                                    text = stringResource(
-                                        if (enabled) R.string.status_enabled else R.string.status_disabled,
-                                    ),
-                                    fontSize = MiuixTheme.textStyles.body2.fontSize,
-                                    color = if (enabled) {
-                                        MiuixTheme.colorScheme.onSurfaceVariantActions
-                                    } else {
-                                        MiuixTheme.colorScheme.primary
-                                    },
-                                )
-                            },
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
-                                    )
-                                }
-                            },
-                        )
                     }
                 }
 
@@ -1223,14 +1173,3 @@ private fun putStringSync(
     runCatching { prefs.edit().putString(key, value).commit() }.getOrDefault(false)
 
 
-private fun isAgentAccessibilityEnabled(context: Context): Boolean {
-    val expected = ComponentName(
-        context,
-        AgentAccessibilityService::class.java,
-    ).flattenToString()
-    val enabledServices = Settings.Secure.getString(
-        context.contentResolver,
-        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-    ).orEmpty()
-    return enabledServices.split(':').any { it.equals(expected, ignoreCase = true) }
-}

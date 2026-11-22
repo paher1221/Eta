@@ -80,6 +80,7 @@ internal data class SubagentProfile(
         val FORBIDDEN_TOOLS = setOf(
             AgentSubagentToolCatalog.TOOL_NAME,
             AgentSubagentToolCatalog.PROFILE_TOOL_NAME,
+            // 旧版 GUI 工具已移除，这里保留名字防止历史配置继续放行。
             "observe_screen",
             "release_gui",
             "present_to_user",

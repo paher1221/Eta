@@ -1,8 +1,6 @@
 package io.github.mangi.eta.agent.runtime
 
 import android.os.SystemClock
-import io.github.mangi.eta.agent.accessibility.AgentAccessibilityService
-import io.github.mangi.eta.agent.accessibility.PackageWindowVisibility
 import io.github.mangi.eta.core.AgentLogger
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -48,62 +46,10 @@ internal class EntrySurfaceGuard private constructor(
             return completed
         }
 
-        val service = AgentAccessibilityService.current()
-        if (service == null) {
-            triggered.set(false)
-            logger.warn("Agent runtime entry surface dismiss skipped: accessibility service unavailable")
-            return false
-        }
-
-        val packageName = targetPackageName
-        val visibility = packageName?.let(service::packageWindowVisibility)
-        when (EntrySurfaceDismissPolicy.decide(packageName, visibility)) {
-            EntrySurfaceDismissPolicy.Decision.ALREADY_GONE -> {
-                if (!service.awaitPackageWindowGone(packageName!!)) {
-                    triggered.set(false)
-                    logger.warn(
-                        "Agent runtime entry surface absence was not stable; keep screenshot " +
-                            "exclusion and retry later: package=$packageName",
-                    )
-                    return false
-                }
-                dismissalCompleted.set(true)
-                logger.debug {
-                    "Agent runtime entry surface already gone before foreground operation " +
-                        "package=$packageName"
-                }
-                return true
-            }
-            EntrySurfaceDismissPolicy.Decision.DEFER -> {
-                triggered.set(false)
-                logger.warn(
-                    "Agent runtime entry surface visibility unknown; keep screenshot exclusion " +
-                        "and retry later: package=$packageName",
-                )
-                return false
-            }
-            EntrySurfaceDismissPolicy.Decision.SEND_BACK -> Unit
-        }
-        val startedAt = SystemClock.elapsedRealtime()
-        val actionResult = service.globalActionResult("BACK")
-        val windowGone = packageName?.let(service::awaitPackageWindowGone) ?: actionResult.ok
-        val waitedMillis = SystemClock.elapsedRealtime() - startedAt
-        val completed = if (packageName == null) actionResult.ok else windowGone
-
-        if (completed) {
-            dismissalCompleted.set(true)
-            logger.debug {
-                "Agent runtime entry surface dismissed before foreground operation " +
-                    "package=$packageName visibilityBefore=$visibility waitedMs=$waitedMillis"
-            }
-        } else {
-            logger.warn(
-                "Agent runtime entry surface dismiss incomplete before foreground operation: " +
-                    "actionCode=${actionResult.code} windowGone=$windowGone package=$packageName " +
-                    "visibilityBefore=$visibility waitedMs=$waitedMillis"
-            )
-        }
-        return completed
+        // 无障碍回退退场已移除；没有自有入口关闭能力时无法完成退场。
+        triggered.set(false)
+        logger.warn("Agent runtime entry surface dismiss unavailable: no owned surface dismissal")
+        return false
     }
 
     fun consumeScreenshotExcludedPackages(): Set<String> {
@@ -134,23 +80,5 @@ internal class EntrySurfaceGuard private constructor(
 
         private const val ETA_PACKAGE_NAME = "io.github.mangi.eta"
         private const val NANOS_PER_MILLISECOND = 1_000_000L
-    }
-}
-
-internal object EntrySurfaceDismissPolicy {
-    enum class Decision {
-        ALREADY_GONE,
-        SEND_BACK,
-        DEFER,
-    }
-
-    fun decide(
-        targetPackageName: String?,
-        visibility: PackageWindowVisibility?,
-    ): Decision = when {
-        targetPackageName == null -> Decision.SEND_BACK
-        visibility == PackageWindowVisibility.GONE -> Decision.ALREADY_GONE
-        visibility == PackageWindowVisibility.VISIBLE -> Decision.SEND_BACK
-        else -> Decision.DEFER
     }
 }

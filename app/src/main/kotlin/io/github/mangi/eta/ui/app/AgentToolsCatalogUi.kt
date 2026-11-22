@@ -13,22 +13,13 @@ internal fun buildToolsState(context: Context): AgentToolsUiState =
                 id = "screen",
                 title = context.getString(R.string.state_screens_and_controls_3f095b),
                 tools = listOf(
-                    ToolItemUi("observe_screen", context.getString(R.string.tool_ui_watch_the_screen_e70f2a), context.getString(R.string.tool_ui_read_the_current_node_and_attach_the_original_im_df1fec)),
                     ToolItemUi("present_to_user", context.getString(R.string.tool_present_to_user), context.getString(R.string.tool_present_to_user_description)),
-                    ToolItemUi("release_gui", context.getString(R.string.tool_release_gui), context.getString(R.string.tool_release_gui_description)),
-                    ToolItemUi("tap_element", context.getString(R.string.tool_ui_click_element_7a3d91), context.getString(R.string.tool_ui_click_on_the_most_recently_observed_node_b4cf5a)),
-                    ToolItemUi("tap_area", context.getString(R.string.tool_ui_click_area_cbaa08), context.getString(R.string.tool_ui_click_by_coordinate_area_2ad961)),
-                    ToolItemUi("long_press", context.getString(R.string.tool_ui_long_press_f7a417), context.getString(R.string.tool_ui_long_press_on_coordinates_or_elements_796384)),
-                    ToolItemUi("swipe", context.getString(R.string.tool_ui_slide_3723aa), context.getString(R.string.tool_ui_perform_up_down_left_and_right_swipe_gestures_3ef0de)),
-                    ToolItemUi("scroll", context.getString(R.string.tool_ui_scroll_220e68), context.getString(R.string.tool_ui_scroll_the_page_or_specify_a_node_83ab24)),
                 ),
             ),
             ToolGroupUi(
                 id = "text",
                 title = context.getString(R.string.state_text_and_clipboard_3a7340),
                 tools = listOf(
-                    ToolItemUi("type_text", context.getString(R.string.tool_ui_enter_text_ae47ab), context.getString(R.string.tool_ui_type_text_summary)),
-                    ToolItemUi("wait_for_text", context.getString(R.string.tool_ui_wait_for_text_9e9a54), context.getString(R.string.tool_ui_wait_for_the_specified_text_to_appear_on_the_scr_43f9b0)),
                     ToolItemUi("set_clipboard", context.getString(R.string.tool_set_clipboard), context.getString(R.string.ui_misc_tool_set_clipboard_desc)),
                     ToolItemUi("get_clipboard", context.getString(R.string.tool_get_clipboard), context.getString(R.string.ui_misc_tool_get_clipboard_desc)),
                 ),
@@ -50,8 +41,6 @@ internal fun buildToolsState(context: Context): AgentToolsUiState =
                     ToolItemUi("get_current_context", context.getString(R.string.tool_ui_time_and_location_693893), context.getString(R.string.tool_ui_read_system_time_and_recent_location_b9f4ae)),
                     ToolItemUi("launch_app", context.getString(R.string.tool_ui_open_app_7c65e7), context.getString(R.string.tool_ui_start_the_specified_package_name_or_application__beabff)),
                     ToolItemUi("open_uri", context.getString(R.string.tool_ui_open_with_app_32c24e), context.getString(R.string.tool_ui_explicitly_hand_over_links_or_deep_links_to_exte_35ff26)),
-                    ToolItemUi("press_key", context.getString(R.string.tool_ui_button_02eafa), context.getString(R.string.tool_ui_system_buttons_such_as_return_homepage_recent_ta_1b4cf0)),
-                    ToolItemUi("open_system_panel", context.getString(R.string.tool_ui_system_panel_b0f7a3), context.getString(R.string.tool_ui_open_the_notification_bar_quick_settings_and_oth_5e51cf)),
                 ),
             ),
             ToolGroupUi(

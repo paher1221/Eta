@@ -6,7 +6,6 @@
   <string name="run_waiting_for_gui">等待手機控制權</string>
   <string name="run_gui_user_paused">使用者接管中</string>
   <string name="tool_release_gui">釋放手機操作</string>
-  <string name="tool_release_gui_description">完成目前的手機操作階段，將控制權交給等待中的任務。</string>
   <string name="tool_present_to_user">呈現到主畫面</string>
   <string name="tool_present_to_user_description">將背景虛擬螢幕中已準備就緒的頁面無縫移交至實體主畫面。</string>
   <string name="settings_virtual_display_title">背景虛擬螢幕執行</string>
@@ -27,8 +26,6 @@
   <string name="settings_language">語言</string>
   <string name="settings_language_system">跟隨系統</string>
   <string name="app_name">Eta</string>
-  <string name="agent_accessibility_label">Eta Agent</string>
-  <string name="agent_accessibility_description">讀取畫面內容並執行點按、滑動、文字輸入等操作，協助 Agent 完成任務。</string>
   <string name="notification_history_service_label">Eta 通知記錄</string>
   <string name="voice_interaction_service_label">Eta</string>
   <string name="recognition_service_label">Eta 語音辨識</string>
@@ -340,7 +337,6 @@
   <string name="ui_disabled_0fe5a9">已停用</string>
   <string name="ui_removed_4e5c49">已移除</string>
   <string name="ui_edited_c36776">已編輯</string>
-  <string name="ui_enforce_accessibility_55e838">強制維持無障礙</string>
   <string name="ui_current_25e74d">目前</string>
   <string name="ui_current_model_a0af8f">目前模型</string>
   <string name="ui_restore_automatic_8d4e1e">恢復自動</string>
@@ -358,7 +354,6 @@
   <string name="ui_new_anthropic_db6098">新增 Anthropic</string>
   <string name="ui_added_openai_compatible_6bd471">新增 OpenAI-compatible</string>
   <string name="ui_add_new_provider_74df54">新增供應商</string>
-  <string name="ui_accessibility_enhancement_tools_8fd257">無障礙增強工具</string>
   <string name="ui_no_skills_installed_yet_4e960f">尚未安裝任何 Skill</string>
   <string name="ui_replace_user_skills_250e98">取代 Skill？</string>
   <string name="ui_how_can_i_help_you_e75391">有什麼可以幫你？</string>
@@ -510,7 +505,6 @@
   <string name="state_unable_to_continue_installation_136d7c">無法繼續安裝</string>
   <string name="state_unable_to_read_skills_599082">無法讀取 Skills</string>
   <string name="state_unable_to_read_skill_pack_a53563">無法讀取 Skill 包</string>
-  <string name="state_accessibility_permissions_f80103">無障礙輔助權限</string>
   <string name="state_replacement_confirmation_has_expired_please_select_t_fce9f2">替換確認已失效，請重新選擇 ZIP 檔案。</string>
   <string name="state_core_memory_is_automatically_injected_and_detailed_c_07232b">核心記憶自動注入，詳細內容由模型按需檢索</string>
   <string name="state_model_increments_tool_calls_and_final_results_are_sy_3f2321">模型增量、工具呼叫和最終結果會同步到目前對話</string>
@@ -610,7 +604,6 @@
   <string name="page_reset_session_911448">重設工作階段</string>
   <string name="page_requires_root_and_magisk_kernelsu_or_apatch_busybox_47166a">需要 Root 與 Magisk、KernelSU 或 APatch BusyBox</string>
   <string name="page_abnormal_5caf27">例外</string>
-  <string name="page_accessibility_protection_request_was_denied_by_the_s_34c699">無障礙保護請求被系統拒絕</string>
   <string name="page_add_to_94191c">添加</string>
   <string name="page_authorized_284cc0">已授權</string>
   <string name="page_base_url_must_be_a_valid_http_s_address_0e7d58">Base URL 必須是有效的 HTTP(S) 位址</string>
@@ -664,7 +657,6 @@
   <string name="page_system_default_assistant_576746">系統預設助手</string>
   <string name="page_take_a_screenshot_and_describe_the_current_screen_555fbd">截圖並描述當前螢幕</string>
   <string name="page_testing_f43705">測試中...</string>
-  <string name="page_the_accessibility_protection_backend_is_unavailable__e50b64">無障礙保護後端不可用，請確認 system 作用域已啟用並重新啟動</string>
   <string name="page_the_installation_is_complete_and_will_take_effect_af_82329a">安裝完成，重開機後生效</string>
   <string name="page_there_is_currently_no_model_provider_please_add_one_78ab6a">尚無模型供應商，請新增</string>
   <string name="page_this_message_and_subsequent_content_will_be_replaced_086779">發送後將替換此訊息及之後內容</string>
@@ -866,8 +858,6 @@
   <string name="status_unauthorized">未授權</string>
   <string name="status_enabled">已啟用</string>
   <string name="status_disabled">未啟用</string>
-  <string name="accessibility_protection_unavailable">無障礙保護後端無法使用，請確認已啟用 system 作用範圍並重新啟動</string>
-  <string name="accessibility_protection_rejected">系統拒絕了無障礙保護要求</string>
   <string name="settings_write_failed">無法儲存設定</string>
   <string name="status_processing">處理中…</string>
   <string name="power_assistant_system_default">系統預設助理</string>

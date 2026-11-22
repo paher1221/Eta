@@ -31,7 +31,7 @@ class AgentModelClientLoopTest {
             },
         ))
         AgentModelClient.complete(
-            modelConfig(), "看一下屏幕",
+            modelConfig().copy(deviceSensitiveReadTools = true), "看一下屏幕",
             AgentModelClient.ToolExecutor {
                 notifications = false
                 AgentModelClient.ToolResult("""{"ok":true}""")
@@ -444,7 +444,7 @@ class AgentModelClientLoopTest {
             assistant(
                 finishReason = "tool_calls",
                 toolCalls = listOf(
-                    toolCall("call-1", "observe_screen", "{}"),
+                    toolCall("call-1", "device_status", "{}"),
                     toolCall("call-2", "get_current_context", "{}"),
                 ),
             ),
@@ -487,11 +487,11 @@ class AgentModelClientLoopTest {
         val provider = ScriptedProvider(
             assistant(
                 finishReason = "tool_calls",
-                toolCalls = listOf(toolCall("observe", "observe_screen", "{}")),
+                toolCalls = listOf(toolCall("observe", "device_status", "{}")),
             ),
             assistant(
                 finishReason = "tool_calls",
-                toolCalls = listOf(toolCall("tap", "tap", "{\"x\":10,\"y\":20}")),
+                toolCalls = listOf(toolCall("tap", "set_clipboard", "{\"text\":\"已确认\"}")),
             ),
             assistant(content = "完成", finishReason = "stop"),
         )
@@ -502,7 +502,7 @@ class AgentModelClientLoopTest {
             toolExecutor = AgentModelClient.ToolExecutor { call ->
                 AgentModelClient.ToolResult(
                     content = JSONObject().put("ok", true).toString(),
-                    images = if (call.name == "observe_screen") {
+                    images = if (call.id == "observe") {
                         listOf(
                             AgentModelClient.ModelImage(
                                 reference = screenshot,
@@ -532,11 +532,11 @@ class AgentModelClientLoopTest {
         val provider = ScriptedProvider(
             assistant(
                 finishReason = "tool_calls",
-                toolCalls = listOf(toolCall("observe-1", "observe_screen", "{}")),
+                toolCalls = listOf(toolCall("observe-1", "device_status", "{}")),
             ),
             assistant(
                 finishReason = "tool_calls",
-                toolCalls = listOf(toolCall("observe-2", "observe_screen", "{}")),
+                toolCalls = listOf(toolCall("observe-2", "device_status", "{}")),
             ),
             assistant(content = "完成", finishReason = "stop"),
         )
@@ -572,7 +572,7 @@ class AgentModelClientLoopTest {
         val calls = listOf(
             toolCall("write", "write_file", """{"path":"note.md","content":"内容","identity":"USER","extra":true}"""),
             toolCall("read", "read_file", """{"path":"note.md","start_line":1,"offset_bytes":0,"max_bytes":1000000}"""),
-            toolCall("missing", "tap", "{}"),
+            toolCall("missing", "device_status", "{}"),
         )
         val provider = ScriptedProvider(
             assistant(finishReason = "tool_calls", toolCalls = calls),
@@ -975,13 +975,13 @@ class AgentModelClientLoopTest {
                 { _, _ ->
                     assistant(
                         finishReason = "tool_calls",
-                        toolCalls = listOf(toolCall("obs_1", "observe_screen", """{"include_screenshot":true}""")),
+                        toolCalls = listOf(toolCall("obs_1", "device_status", "{}")),
                     )
                 },
                 { _, _ ->
                     assistant(
                         finishReason = "tool_calls",
-                        toolCalls = listOf(toolCall("tap_1", "tap", """{"x":100,"y":200,"coordinate_space":"normalized"}""")),
+                        toolCalls = listOf(toolCall("tap_1", "set_clipboard", "{\"text\":\"确认\"}")),
                     )
                 },
                 { _, _ -> assistant(content = "操作完成", finishReason = "stop") },
@@ -992,7 +992,7 @@ class AgentModelClientLoopTest {
             config = modelConfig(),
             prompt = "帮我看屏幕",
             toolExecutor = AgentModelClient.ToolExecutor { call ->
-                if (call.name == "observe_screen") {
+                if (call.id == "obs_1") {
                     controller.steer("顺便点一下确认按钮")
                     AgentModelClient.ToolResult(
                         content = """{"ok":true,"observation_id":"o1"}""",

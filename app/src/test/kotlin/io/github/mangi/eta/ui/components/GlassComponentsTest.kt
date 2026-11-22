@@ -425,7 +425,7 @@ class GlassComponentsTest {
                     id = "root",
                     title = "高级",
                     tools = listOf(
-                        ToolItemUi(id = "get_logcat", title = "日志检查", summary = "需要 Root"),
+                        ToolItemUi(id = "device_status", title = "设备状态", summary = "读取系统状态"),
                     ),
                 ),
             ),
@@ -446,8 +446,8 @@ class GlassComponentsTest {
             pumpFrames(activity, frameClock)
 
             assertTrue(
-                "Switching to All tab should expose root-gated tools",
-                collectAllTexts(activity).any { it == "日志检查" },
+                "Switching to All tab should expose all tools",
+                collectAllTexts(activity).any { it == "设备状态" },
             )
         } finally {
             recomposer.cancel()

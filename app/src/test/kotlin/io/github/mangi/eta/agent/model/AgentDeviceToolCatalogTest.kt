@@ -27,7 +27,7 @@ class AgentDeviceToolCatalogTest {
         assertFalse("send_message" in reads)
         assertFalse("send_message" in actions)
         assertFalse("personal_context" in reads)
-        assertTrue(actions.isEmpty())
+        assertTrue("设备动作组不得发布设备工具", (direct + reads).none { it in actions })
     }
 
     private fun names(

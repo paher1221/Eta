@@ -84,8 +84,7 @@ class ToolCatalogUiTest {
         assertTrue(group.tools.any { it.id == "recent_notifications" })
         assertTrue(group.tools.none { it.id == "personal_context" || it.id == "create_note" })
         val operations = buildToolsState(RuntimeEnvironment.getApplication()).groups.first { it.id == "device_direct" }
-        assertTrue(operations.tools.any { it.id == "set_flashlight" })
-        assertTrue(operations.tools.any { it.id == "create_calendar_event" })
+        assertTrue(operations.tools.any { it.id == "set_volume" })
         requireNotNull(toolCardRequirement("recent_notifications"))
     }
 
@@ -103,10 +102,10 @@ class ToolCatalogUiTest {
     fun disabledToolsAreOmittedFromModelCatalogAndPersistInPrefs() {
         val context = RuntimeEnvironment.getApplication()
         Prefs.initLocal(context)
-        Prefs.setToolsEnabled(listOf("read_sms_code", "set_volume"), false)
-        assertFalse(Prefs.isToolEnabled("read_sms_code"))
+        Prefs.setToolsEnabled(listOf("media_control", "set_volume"), false)
+        assertFalse(Prefs.isToolEnabled("media_control"))
         assertFalse(Prefs.isToolEnabled("set_volume"))
-        assertTrue(Prefs.isToolEnabled("list_alarms"))
+        assertTrue(Prefs.isToolEnabled("set_alarm"))
 
         val tools = AgentToolCatalog.build(
             terminalTools = true,
@@ -120,13 +119,13 @@ class ToolCatalogUiTest {
         val names = (0 until tools.length()).map {
             tools.getJSONObject(it).getJSONObject("function").getString("name")
         }.toSet()
-        assertFalse("read_sms_code" in names)
+        assertFalse("media_control" in names)
         assertFalse("set_volume" in names)
-        assertTrue("list_alarms" in names)
+        assertTrue("set_alarm" in names)
         assertTrue("get_current_context" in names)
 
-        Prefs.setToolsEnabled(listOf("read_sms_code", "set_volume"), true)
-        assertTrue(Prefs.isToolEnabled("read_sms_code"))
+        Prefs.setToolsEnabled(listOf("media_control", "set_volume"), true)
+        assertTrue(Prefs.isToolEnabled("media_control"))
         assertTrue(Prefs.isToolEnabled("set_volume"))
     }
 

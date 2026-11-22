@@ -439,9 +439,9 @@ class SubagentTest {
         val defaultEphemeral = SubagentProfile.resolve(name = "log-auditor")
         assertTrue(defaultEphemeral.isToolAllowed("read_file"))
         assertTrue(defaultEphemeral.isToolAllowed("terminal"))
-        assertFalse(defaultEphemeral.isToolAllowed("set_setting"))
         assertFalse(defaultEphemeral.isToolAllowed("set_volume"))
-        assertFalse(defaultEphemeral.isToolAllowed("app_state_control"))
+        assertFalse(defaultEphemeral.isToolAllowed("set_flashlight"))
+        assertFalse(defaultEphemeral.isToolAllowed("set_do_not_disturb"))
         assertFalse(defaultEphemeral.isToolAllowed("observe_screen"))
 
         val explicitAlarm = SubagentProfile.resolve(

@@ -36,7 +36,7 @@ class AgentOverlayVisibilityPolicyTest {
 
     @Test
     fun completedForegroundToolsRevealTheOverlayAndAreRecordedAfterPreparation() {
-        val finished = AgentEvent.ToolFinished(1, "observe-1", "observe_screen", "完成", 0, 0, success = true)
+        val finished = AgentEvent.ToolFinished(1, "launch-1", "launch_app", "完成", 0, 0, success = true)
         assertTrue(AgentOverlayVisibilityPolicy.shouldRevealFor(finished))
         assertFalse(AgentOverlayVisibilityPolicy.shouldRecordForegroundExecution(finished, false))
         assertTrue(AgentOverlayVisibilityPolicy.shouldRecordForegroundExecution(finished, true))

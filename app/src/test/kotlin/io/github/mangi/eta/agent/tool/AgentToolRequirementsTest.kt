@@ -46,7 +46,7 @@ class AgentToolRequirementsTest {
             it in projected.names()
         })
         assertEquals("[\"user\"]", projected.properties("terminal").getJSONObject("identity").getJSONArray("enum").toString())
-        assertEquals(2, original.properties("terminal").getJSONObject("identity").getJSONArray("enum").length())
+        assertEquals(1, original.properties("terminal").getJSONObject("identity").getJSONArray("enum").length())
         assertFalse(projected.toString().contains("/data/local/tmp/eta"))
         assertFalse(projected.properties("read_image").getJSONObject("path").toString().contains("Root"))
     }

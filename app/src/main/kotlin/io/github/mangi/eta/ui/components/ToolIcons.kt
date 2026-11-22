@@ -7,12 +7,14 @@ import androidx.compose.material.icons.automirrored.rounded.ManageSearch
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.StickyNote2
+import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.AdsClick
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.BrightnessMedium
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChatBubble
@@ -22,10 +24,12 @@ import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.ContentPasteGo
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.DocumentScanner
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.FindReplace
+import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Insights
@@ -99,6 +103,10 @@ internal fun iconForTool(toolId: String): ImageVector = when (toolId) {
         -> Icons.Rounded.Extension
     "set_alarm", "set_timer", "list_alarms", "list_active_timers" ->
         Icons.Rounded.Alarm
+    "get_flashlight", "set_flashlight" -> Icons.Rounded.FlashlightOn
+    "get_display_state" -> Icons.Rounded.BrightnessMedium
+    "get_sound_state" -> Icons.Rounded.VolumeDown
+    "set_do_not_disturb" -> Icons.Rounded.DoNotDisturbOn
     "device_status", "set_device_state", "get_device_environment" ->
         Icons.Rounded.Smartphone
     "network_info", "wifi_credentials" -> Icons.Rounded.Wifi

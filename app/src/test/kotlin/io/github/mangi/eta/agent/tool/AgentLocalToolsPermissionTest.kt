@@ -228,12 +228,12 @@ class AgentLocalToolsPermissionTest {
             logger = NoOpLogger,
             browserRunId = "test-run",
             deviceSensitiveReadToolsEnabled = { true },
-            isToolEnabled = { it != "read_sms_code" },
+            isToolEnabled = { it != "recent_notifications" },
         )
         val result = tools.execute(
             AgentModelClient.ToolCall(
                 id = "call-disabled",
-                name = "read_sms_code",
+                name = "recent_notifications",
                 argumentsJson = "{}",
             ),
         )

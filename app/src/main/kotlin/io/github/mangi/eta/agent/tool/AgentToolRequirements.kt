@@ -24,6 +24,7 @@ internal object AgentToolRequirements {
             "get_current_context", "search_apps", "launch_app", "present_to_user", "open_uri", "browser_use", "web_search", "fetch_url",
             "set_clipboard", "get_clipboard",
             "set_alarm", "set_timer", "device_status", "inspect_app", "media_control", "set_volume",
+            "get_flashlight", "set_flashlight", "get_display_state", "get_sound_state", "set_do_not_disturb",
             "search_notification_history", "recent_app_activity", "app_usage_summary",
             "get_current_location", "get_device_environment", "memory_get", "memory_write",
             "character_memory_get", "character_memory_write",
@@ -60,6 +61,10 @@ internal object AgentToolRequirements {
     fun project(tools: JSONArray): JSONArray = JSONArray().also { result ->
         for (index in 0 until tools.length()) {
             val original = tools.getJSONObject(index)
+            val function = original.getJSONObject("function")
+            if (find(function.getString("name")) == null) {
+                throw IllegalArgumentException("未登记的工具不能进入模型目录：${function.getString("name")}")
+            }
             val tool = JSONObject(original.toString())
             projectUnprivileged(tool.getJSONObject("function"))
             result.put(tool)

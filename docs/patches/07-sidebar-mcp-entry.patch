@@ -1,0 +1,129 @@
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
+index 43f30016..9c5251bd 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
+@@ -336,6 +336,7 @@ fun AgentAppRoot(
+             },
+             onOpenTools = { pushRoute(AppRoute.Tools) },
+             onOpenSkills = { pushRoute(AppRoute.Skills) },
++            onOpenMcpServers = { pushRoute(AppRoute.McpServers) },
+             onOpenScheduledTasks = { pushRoute(AppRoute.ScheduledTasks) },
+             onOpenCharacters = { pushRoute(AppRoute.Characters) },
+             onOpenPermissions = { pushRoute(AppRoute.Permissions) },
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
+index 90888bdd..397a79b9 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
+@@ -138,6 +138,7 @@ internal fun AgentAppShell(
+     onConversationDelete: (ConversationSummaryUi) -> Unit,
+     onOpenTools: () -> Unit,
+     onOpenSkills: () -> Unit,
++    onOpenMcpServers: () -> Unit = {},
+     onOpenScheduledTasks: () -> Unit = {},
+     onOpenCharacters: () -> Unit,
+     onOpenPermissions: () -> Unit,
+@@ -294,6 +295,7 @@ internal fun AgentAppShell(
+                 onOpenModelProviders = onOpenModelProviders,
+                 onOpenTools = onOpenTools,
+                 onOpenSkills = onOpenSkills,
++                onOpenMcpServers = onOpenMcpServers,
+                 onOpenScheduledTasks = onOpenScheduledTasks,
+                 onOpenCharacters = onOpenCharacters,
+                 onOpenPermissions = onOpenPermissions,
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPaneIcons.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPaneIcons.kt
+index 2fb38a8e..e5306bf8 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPaneIcons.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPaneIcons.kt
+@@ -155,6 +155,32 @@ internal object ConversationPaneIcons {
+         }
+     }
+ 
++    val Mcp: ImageVector by lazy {
++        vector24("PaneMcp") {
++            path(
++                stroke = SolidColor(Color.Black),
++                strokeLineWidth = STROKE,
++                strokeLineCap = StrokeCap.Round,
++                strokeLineJoin = StrokeJoin.Round,
++            ) {
++                // 插头双脚
++                moveTo(9.0f, 3.4f)
++                verticalLineTo(8.0f)
++                moveTo(15.0f, 3.4f)
++                verticalLineTo(8.0f)
++                // 插头本体与下半弧
++                moveTo(6.6f, 8.0f)
++                horizontalLineTo(17.4f)
++                verticalLineTo(10.8f)
++                arcTo(5.4f, 5.4f, 0f, isMoreThanHalf = true, isPositiveArc = true, 6.6f, 10.8f)
++                close()
++                // 尾线
++                moveTo(12.0f, 16.2f)
++                verticalLineTo(20.6f)
++            }
++        }
++    }
++
+     val Permissions: ImageVector by lazy {
+         vector24("PanePermissions") {
+             path(
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPanePanel.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPanePanel.kt
+index 572a3603..7f3effe1 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPanePanel.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationPanePanel.kt
+@@ -141,6 +141,7 @@ internal fun ConversationPanePanel(
+     onOpenModelProviders: () -> Unit,
+     onOpenTools: () -> Unit,
+     onOpenSkills: () -> Unit,
++    onOpenMcpServers: () -> Unit = {},
+     onOpenScheduledTasks: () -> Unit = {},
+     onOpenCharacters: () -> Unit,
+     onOpenPermissions: () -> Unit,
+@@ -218,6 +219,7 @@ internal fun ConversationPanePanel(
+                                         onOpenCharacters = onOpenCharacters,
+                                         onOpenTools = onOpenTools,
+                                         onOpenSkills = onOpenSkills,
++                                        onOpenMcpServers = onOpenMcpServers,
+                                         onOpenScheduledTasks = onOpenScheduledTasks,
+                                     )
+                                 }
+@@ -315,6 +317,7 @@ private fun PaneWorkbenchSection(
+     onOpenCharacters: () -> Unit,
+     onOpenTools: () -> Unit,
+     onOpenSkills: () -> Unit,
++    onOpenMcpServers: () -> Unit = {},
+     onOpenScheduledTasks: () -> Unit = {},
+ ) {
+     val modelSummary = activeModelLabel?.takeIf { it.isNotBlank() }
+@@ -341,6 +344,11 @@ private fun PaneWorkbenchSection(
+             title = stringResource(R.string.route_skills),
+             onClick = onOpenSkills,
+         ),
++        WorkbenchEntry(
++            icon = ConversationPaneIcons.Mcp,
++            title = stringResource(R.string.route_mcp_servers),
++            onClick = onOpenMcpServers,
++        ),
+         WorkbenchEntry(
+             icon = ConversationPaneIcons.Schedule,
+             title = stringResource(R.string.route_scheduled_tasks),
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationSidePaneScaffold.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationSidePaneScaffold.kt
+index 29d63127..dbf0fb79 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationSidePaneScaffold.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/components/ConversationSidePaneScaffold.kt
+@@ -82,6 +82,7 @@ fun ConversationSidePaneScaffold(
+     onOpenModelProviders: () -> Unit,
+     onOpenTools: () -> Unit,
+     onOpenSkills: () -> Unit,
++    onOpenMcpServers: () -> Unit = {},
+     onOpenScheduledTasks: () -> Unit = {},
+     onOpenCharacters: () -> Unit,
+     onOpenPermissions: () -> Unit,
+@@ -236,6 +237,7 @@ fun ConversationSidePaneScaffold(
+                         onOpenModelProviders = onOpenModelProviders,
+                         onOpenTools = onOpenTools,
+                         onOpenSkills = onOpenSkills,
++                        onOpenMcpServers = onOpenMcpServers,
+                         onOpenScheduledTasks = onOpenScheduledTasks,
+                         onOpenCharacters = onOpenCharacters,
+                         onOpenPermissions = onOpenPermissions,

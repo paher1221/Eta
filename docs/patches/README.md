@@ -13,6 +13,7 @@
 | 04 | `04-remove-home-suggestion-cards.patch` | 移除主页空会话建议卡片 | `6c0ce42b` |
 | 05 | `05-remove-voice-module.patch` | 移除应用内语音模块（保留 handoff 机制常量） | `3a24d81d` |
 | 06 | `06-global-system-prompt-and-docs.patch` | 系统提示词移至角色模块全局生效 + 本补丁目录 | `081e9699`…`88edc3e3` |
+| 07 | `07-sidebar-mcp-entry.patch` | 侧边栏工作台 Skills 下方新增 MCP 服务器入口（设置页原入口保留） | `068bee4c` |
 | 全量 | `full-personal-modifications.patch` | 以上全部改动的合并差异（含本目录） | `cf98d1e0`…`88edc3e3` |
 
 ## 上游更新后的重打方法
@@ -37,6 +38,7 @@ git apply --3way docs/patches/full-personal-modifications.patch
 4. **04 建议卡片**：只删主页四个建议卡片，注意键盘控制器引用（`c5ad4d6c` 的修复属于 03 区间，勿漏）。
 5. **05 语音模块**：保留 `ETA_VOICE_HANDOFF_SOURCE` 常量与 handoff 机制；语音阶段枚举需补回（`30d4fe3c`）。
 6. **06 全局系统提示词**：优先级为 全局提示词 > 服务商级配置 > 内置默认；`ProviderSetting.systemPrompt` 字段保留以兼容旧数据。英文文案撇号必须转义（`provider\'s`）。角色卡提示词优先于全局提示词（`AgentPromptBuilder` 的 roleplay 分支不动）。
+7. **07 侧边栏 MCP 入口**：回调链为 `AgentAppRoot → AgentAppShell → ConversationSidePaneScaffold → ConversationPanePanel → PaneWorkbenchSection`，新增参数均带默认值，上游若改侧边栏结构按此链路重接；图标为 `ConversationPaneIcons.Mcp`（插头造型，等线宽风格）。
 
 ## 维护约定
 

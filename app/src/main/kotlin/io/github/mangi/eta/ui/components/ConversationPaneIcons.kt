@@ -155,6 +155,32 @@ internal object ConversationPaneIcons {
         }
     }
 
+    val Mcp: ImageVector by lazy {
+        vector24("PaneMcp") {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = STROKE,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                // 插头双脚
+                moveTo(9.0f, 3.4f)
+                verticalLineTo(8.0f)
+                moveTo(15.0f, 3.4f)
+                verticalLineTo(8.0f)
+                // 插头本体与下半弧
+                moveTo(6.6f, 8.0f)
+                horizontalLineTo(17.4f)
+                verticalLineTo(10.8f)
+                arcTo(5.4f, 5.4f, 0f, isMoreThanHalf = true, isPositiveArc = true, 6.6f, 10.8f)
+                close()
+                // 尾线
+                moveTo(12.0f, 16.2f)
+                verticalLineTo(20.6f)
+            }
+        }
+    }
+
     val Permissions: ImageVector by lazy {
         vector24("PanePermissions") {
             path(

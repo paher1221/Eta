@@ -80,10 +80,6 @@ import io.github.mangi.eta.ui.screens.terminal.SharedFoldersScreen
 import io.github.mangi.eta.ui.screens.terminal.WorkspaceScreen
 import io.github.mangi.eta.ui.screens.tools.AgentToolsScreen
 import io.github.mangi.eta.ui.screens.tools.WebToolsSettingsScreen
-import io.github.mangi.eta.ui.voice.SpeechOssScreen
-import io.github.mangi.eta.ui.voice.SpeechRecognitionScreen
-import io.github.mangi.eta.ui.voice.SpeechSettingsScreen
-import io.github.mangi.eta.ui.voice.SpeechSynthesisScreen
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -283,27 +279,23 @@ class UiStyleThemeAndScreensTest {
                                 onImport = { error("unused") },
                             )
                             11 -> AgentMemoryScreen(state = memoryState, onAction = {})
-                            12 -> SpeechSettingsScreen(onBack = { backPressedCount++ }, onNavigate = {})
-                            13 -> SpeechRecognitionScreen(onBack = { backPressedCount++ }, onOpenOss = {})
-                            14 -> SpeechSynthesisScreen(onBack = { backPressedCount++ })
-                            15 -> SpeechOssScreen(onBack = { backPressedCount++ })
-                            16 -> CommunityCatalogScreen(store = catalogStore, onNavigate = {}, onBack = { backPressedCount++ })
-                            17 -> CharacterLibraryScreen(store = characterStore, onNavigate = {}, onBack = { backPressedCount++ })
-                            18 -> CharacterPersonaScreen(store = characterStore, onBack = { backPressedCount++ })
-                            19 -> CharacterMemoryScreen(id = "char-1", store = characterStore, onBack = { backPressedCount++ })
-                            20 -> LinuxEnvironmentScreen(context = activity, onNavigate = {}, onBack = { backPressedCount++ })
-                            21 -> LinuxFilesScreen(context = activity, distribution = "alpine", onBack = { backPressedCount++ })
-                            22 -> SharedFoldersScreen(context = activity, onBack = { backPressedCount++ })
-                            23 -> WorkspaceScreen(onBack = { backPressedCount++ })
-                            24 -> AgentBrowserScreen(session = browserSession, onBack = { backPressedCount++ })
-                            25 -> AgentAppRoot()
-                            26 -> ConversationTitleSettingsScreen(onBack = { backPressedCount++ })
+                            12 -> CommunityCatalogScreen(store = catalogStore, onNavigate = {}, onBack = { backPressedCount++ })
+                            13 -> CharacterLibraryScreen(store = characterStore, onNavigate = {}, onBack = { backPressedCount++ })
+                            14 -> CharacterPersonaScreen(store = characterStore, onBack = { backPressedCount++ })
+                            15 -> CharacterMemoryScreen(id = "char-1", store = characterStore, onBack = { backPressedCount++ })
+                            16 -> LinuxEnvironmentScreen(context = activity, onNavigate = {}, onBack = { backPressedCount++ })
+                            17 -> LinuxFilesScreen(context = activity, distribution = "alpine", onBack = { backPressedCount++ })
+                            18 -> SharedFoldersScreen(context = activity, onBack = { backPressedCount++ })
+                            19 -> WorkspaceScreen(onBack = { backPressedCount++ })
+                            20 -> AgentBrowserScreen(session = browserSession, onBack = { backPressedCount++ })
+                            21 -> AgentAppRoot()
+                            22 -> ConversationTitleSettingsScreen(onBack = { backPressedCount++ })
                         }
                     }
                 }
             }
 
-            for (index in 0..26) {
+            for (index in 0..22) {
                 screenIndex = index
                 for (style in listOf(AppearanceUiStyle.COUI, AppearanceUiStyle.MIUIX)) {
                     uiStyle = style

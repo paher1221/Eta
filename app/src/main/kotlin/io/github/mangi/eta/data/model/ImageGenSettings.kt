@@ -6,6 +6,9 @@ import io.github.mangi.eta.core.AppStrings
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class SpeechRegion { BEIJING, SINGAPORE }
+
+@Serializable
 internal enum class ImageGenBackend(val wireValue: String) {
     GEMINI("gemini"),
     OPENAI_COMPATIBLE("openai_compatible"),

@@ -123,7 +123,6 @@ import io.github.mangi.eta.ui.model.ThinkingMessageUi
 import io.github.mangi.eta.ui.model.ToolActivityMessageUi
 import io.github.mangi.eta.ui.model.ToolSummaryMessageUi
 import io.github.mangi.eta.ui.model.UserMessageUi
-import io.github.mangi.eta.ui.voice.SpeechReadAloudButton
 import io.github.suqi8.coui.kmp.squircle.SquircleShape as CouiShape
 import io.github.suqi8.coui.kmp.theme.COUITheme as CouiTheme
 import kotlinx.coroutines.Dispatchers
@@ -304,7 +303,6 @@ internal fun ChatMessageItem(
         )
         is AgentMessageUi -> AgentMessageBlock(
             message = message,
-            allowSpeech = true,
             assistantOverlay = assistantOverlay,
             retainedStreamingState = retainedStreamingState,
             showCopyAction = showCopyAction,
@@ -1003,7 +1001,6 @@ private fun ContextCompactionMarker(
 @Composable
 private fun AgentMessageBlock(
     message: AgentMessageUi,
-    allowSpeech: Boolean = false,
     assistantOverlay: Boolean = false,
     retainedStreamingState: StreamingMarkdownState?,
     showCopyAction: Boolean,
@@ -1135,7 +1132,6 @@ private fun AgentMessageBlock(
                     },
                     tint = if (copied) MiuixTheme.colorScheme.primary else null,
                 )
-                if (allowSpeech) SpeechReadAloudButton(message.id, message.content)
                 if (showMessageActions) {
                     if (message.characterEditable) {
                         TooltipBox(

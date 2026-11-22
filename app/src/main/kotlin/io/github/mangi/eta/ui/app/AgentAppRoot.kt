@@ -103,10 +103,6 @@ import io.github.mangi.eta.ui.screens.imagegen.ImageGenGalleryScreen
 import io.github.mangi.eta.ui.screens.imagegen.ImageGenSettingsScreen
 import io.github.mangi.eta.ui.screens.tools.AgentToolsScreen
 import io.github.mangi.eta.ui.screens.tools.WebToolsSettingsScreen
-import io.github.mangi.eta.ui.voice.SpeechOssScreen
-import io.github.mangi.eta.ui.voice.SpeechRecognitionScreen
-import io.github.mangi.eta.ui.voice.SpeechSettingsScreen
-import io.github.mangi.eta.ui.voice.SpeechSynthesisScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -136,21 +132,13 @@ fun AgentAppRoot(
     onScheduledTaskOpened: () -> Unit = {},
     sharedContent: IncomingShareRequest? = null,
     onSharedContentAccepted: () -> Unit = {},
-    openSpeechSettings: Boolean = false,
     openTerminal: Boolean = false,
     onTerminalOpened: () -> Unit = {},
-    onSpeechSettingsOpened: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
     val uiScope = rememberCoroutineScope()
     val backStack = rememberNavBackStack<AppRoute>(AppRoute.Home)
-    LaunchedEffect(openSpeechSettings) {
-        if (openSpeechSettings) {
-            if (backStack.lastOrNull() != AppRoute.SpeechSettings) backStack.add(AppRoute.SpeechSettings)
-            onSpeechSettingsOpened()
-        }
-    }
     LaunchedEffect(openTerminal) {
         if (openTerminal) {
             if (backStack.lastOrNull() != AppRoute.Terminal) backStack.add(AppRoute.Terminal)
@@ -626,24 +614,6 @@ fun AgentAppRoot(
                             onNavigate = { route -> pushRoute(route) },
                             onBack = ::popRoute
                         )
-                    }
-                    entry<AppRoute.SpeechSettings>(swipeDismiss = activeSwipeDismiss) {
-                        SpeechSettingsScreen(
-                            onBack = ::popRoute,
-                            onNavigate = { route -> pushRoute(route) },
-                        )
-                    }
-                    entry<AppRoute.SpeechRecognition>(swipeDismiss = activeSwipeDismiss) {
-                        SpeechRecognitionScreen(
-                            onBack = ::popRoute,
-                            onOpenOss = { pushRoute(AppRoute.SpeechOss) },
-                        )
-                    }
-                    entry<AppRoute.SpeechSynthesis>(swipeDismiss = activeSwipeDismiss) {
-                        SpeechSynthesisScreen(onBack = ::popRoute)
-                    }
-                    entry<AppRoute.SpeechOss>(swipeDismiss = activeSwipeDismiss) {
-                        SpeechOssScreen(onBack = ::popRoute)
                     }
                     entry<AppRoute.AppearanceSettings>(swipeDismiss = activeSwipeDismiss) {
                         AppearanceSettingsScreen(onBack = ::popRoute)

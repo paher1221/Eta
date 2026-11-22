@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.core.content.IntentCompat
 import io.github.mangi.eta.ui.app.ArchivedConversationRequest
-import io.github.mangi.eta.ui.voice.ACTION_SPEECH_SETTINGS
 
 internal fun conversationHandoffStartMode(): Int =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
@@ -29,12 +28,10 @@ internal data class MainActivityLaunchRequests(
     val archivedConversation: ArchivedConversationRequest? = null,
     val scheduledTaskId: String? = null,
     val sharedContent: IncomingShareRequest? = null,
-    val speechSettings: Boolean = false,
     val terminal: Boolean = false,
 ) {
     fun accept(intent: Intent?): MainActivityLaunchRequests = when (intent?.action) {
         MainActivity.ACTION_OPEN_TERMINAL -> copy(terminal = true)
-        ACTION_SPEECH_SETTINGS -> copy(speechSettings = true)
         MainActivity.ACTION_OPEN_CONVERSATION_ID -> copy(
             conversationId = intent.nonBlankExtra(MainActivity.EXTRA_CONVERSATION_ID),
         )
@@ -69,7 +66,6 @@ internal data class MainActivityLaunchRequests(
                 putString("share_mime_type", share.mimeType)
                 putString("share_text", share.text)
             }
-            putBoolean("speech_settings", speechSettings)
             putBoolean("terminal", terminal)
         })
     }
@@ -102,7 +98,6 @@ internal data class MainActivityLaunchRequests(
                         text = shareText,
                     )
                 } else null,
-                speechSettings = saved.getBoolean("speech_settings"),
                 terminal = saved.getBoolean("terminal"),
             )
         }

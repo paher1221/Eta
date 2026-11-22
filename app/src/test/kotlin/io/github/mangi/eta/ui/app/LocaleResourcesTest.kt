@@ -84,7 +84,6 @@ class LocaleResourcesTest {
         )
         for (locale in listOf("en-US", "zh-CN", "zh-TW", "fr-FR")) {
             assertEquals("Skills", localizedString(locale, R.string.route_skills))
-            assertEquals("API Key", localizedString(locale, R.string.speech_api_key))
         }
     }
 

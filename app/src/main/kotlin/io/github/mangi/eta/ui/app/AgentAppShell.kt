@@ -35,7 +35,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,8 +48,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.data.model.AppearanceUiStyle
-import io.github.mangi.eta.data.model.TtsProvider
-import io.github.mangi.eta.data.repository.SpeechSettingsRepository
 import io.github.mangi.eta.ui.components.AdaptiveTopAppBar
 import io.github.mangi.eta.ui.components.AgentTopBarChatHeader
 import io.github.mangi.eta.ui.components.ChatImagePreviewHost
@@ -330,39 +327,20 @@ private fun CouiTopBarOverflowMenu(
     onOpenBrowser: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val speechSettings by remember { SpeechSettingsRepository.settingsFlow() }.collectAsState(initial = null)
-    val hasSpeechPlayback = speechSettings?.let { it.tts != TtsProvider.NONE } == true
-    val autoReadEnabled = speechSettings?.chatAutoSpeak == true
     val anchor = rememberCouiMenuAnchor()
 
     val newConversationText = stringResource(R.string.action_new_conversation)
     val openTerminalText = stringResource(R.string.action_open_terminal)
     val openBrowserText = stringResource(R.string.action_open_browser)
-    val autoReadText = stringResource(
-        if (autoReadEnabled) R.string.speech_disable_auto_read else R.string.speech_enable_auto_read,
-    )
     val menuItems = remember(
         newConversationText,
         openTerminalText,
         openBrowserText,
-        autoReadText,
-        hasSpeechPlayback,
-        autoReadEnabled,
     ) {
         buildList {
             add(CouiMenuItem(value = 0, text = newConversationText, icon = Icons.Rounded.MapsUgc))
             add(CouiMenuItem(value = 1, text = openTerminalText, icon = Icons.Rounded.Terminal))
             add(CouiMenuItem(value = 2, text = openBrowserText, icon = Icons.Rounded.Language))
-            if (hasSpeechPlayback) {
-                add(
-                    CouiMenuItem(
-                        value = 3,
-                        text = autoReadText,
-                        icon = if (autoReadEnabled) Icons.AutoMirrored.Rounded.VolumeUp else Icons.AutoMirrored.Rounded.VolumeOff,
-                    ),
-                )
-            }
         }
     }
 
@@ -387,11 +365,6 @@ private fun CouiTopBarOverflowMenu(
                     0 -> onNewConversation()
                     1 -> onOpenTerminal()
                     2 -> onOpenBrowser()
-                    3 -> speechSettings?.let { current ->
-                        scope.launch {
-                            SpeechSettingsRepository.save(current.copy(chatAutoSpeak = !current.chatAutoSpeak))
-                        }
-                    }
                 }
             },
             anchor = anchor,
@@ -543,16 +516,9 @@ private fun TopBarOverflowMenu(
         if (!isCurrentRoute) showMenu = false
     }
     val moreAnchor = rememberGlassPopupAnchor()
-    val scope = rememberCoroutineScope()
-    val speechSettings by remember { SpeechSettingsRepository.settingsFlow() }.collectAsState(initial = null)
-    val hasSpeechPlayback = speechSettings?.let { it.tts != TtsProvider.NONE } == true
-    val autoReadEnabled = speechSettings?.chatAutoSpeak == true
     val newConversationText = stringResource(R.string.action_new_conversation)
     val openTerminalText = stringResource(R.string.action_open_terminal)
     val openBrowserText = stringResource(R.string.action_open_browser)
-    val autoReadText = stringResource(
-        if (autoReadEnabled) R.string.speech_disable_auto_read else R.string.speech_enable_auto_read,
-    )
     val overlayBackdrop = currentGlassOverlayBackdrop() ?: backdrop
 
     GlassIconButton(
@@ -614,20 +580,6 @@ private fun TopBarOverflowMenu(
                         onOpenBrowser()
                     },
                 )
-                if (hasSpeechPlayback) {
-                    GlassPopupItem(
-                        text = autoReadText,
-                        icon = if (autoReadEnabled) MiuixIcons.Glass.VolumeUp else MiuixIcons.Glass.VolumeOff,
-                        onClick = {
-                            showMenu = false
-                            speechSettings?.let { current ->
-                                scope.launch {
-                                    SpeechSettingsRepository.save(current.copy(chatAutoSpeak = !current.chatAutoSpeak))
-                                }
-                            }
-                        },
-                    )
-                }
             }
         }
     }
@@ -656,10 +608,6 @@ private fun titleForRoute(route: AppRoute?): String = when (route) {
     is AppRoute.CharacterMemory -> stringResource(R.string.ui_misc_route_character_memory)
     is AppRoute.Permissions -> stringResource(R.string.route_permissions)
     is AppRoute.Settings -> stringResource(R.string.route_settings)
-    is AppRoute.SpeechSettings -> stringResource(R.string.speech_settings_title)
-    is AppRoute.SpeechRecognition -> stringResource(R.string.speech_recognition_title)
-    is AppRoute.SpeechSynthesis -> stringResource(R.string.speech_synthesis_title)
-    is AppRoute.SpeechOss -> stringResource(R.string.speech_oss_title)
     is AppRoute.AppearanceSettings -> stringResource(R.string.appearance_title)
     is AppRoute.DataBackup -> stringResource(R.string.data_backup_title)
     is AppRoute.Memory -> stringResource(R.string.route_memory)

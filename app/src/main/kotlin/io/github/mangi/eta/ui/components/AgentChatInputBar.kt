@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
@@ -83,7 +82,6 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -91,7 +89,6 @@ import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.data.model.AppearanceUiStyle
 import io.github.mangi.eta.data.model.ReasoningEffort
-import io.github.mangi.eta.data.repository.SpeechSettingsRepository
 import io.github.mangi.eta.ui.app.LocalUiStyle
 import io.github.mangi.eta.ui.components.coui.CouiMenu
 import io.github.mangi.eta.ui.components.coui.CouiMenuItem
@@ -103,9 +100,6 @@ import io.github.mangi.eta.ui.model.AgentContextUsageUi
 import io.github.mangi.eta.ui.model.PendingFileReferenceUi
 import io.github.mangi.eta.ui.model.PendingImageUi
 import io.github.mangi.eta.ui.model.QueuedMessageUi
-import io.github.mangi.eta.ui.voice.SpeechDictationButton
-import io.github.mangi.eta.ui.voice.SpeechInputFeedback
-import io.github.mangi.eta.ui.voice.rememberSpeechInput
 import io.github.suqi8.coui.kmp.blur.ViewBlurDefaults
 import io.github.suqi8.coui.kmp.blur.couiViewBlur
 import top.yukonga.miuix.kmp.basic.Icon
@@ -183,43 +177,6 @@ internal fun AgentChatInputBar(
     val hapticFeedback = LocalHapticFeedback.current
     val focusRequester = remember { FocusRequester() }
     val textFieldState = rememberTextFieldState(initialText = input)
-    val speechSettings by remember { SpeechSettingsRepository.settingsFlow() }.collectAsState(initial = null)
-    val recognitionEnabled = speechSettings?.recognitionEnabled == true
-    val dictation = rememberSpeechInput(
-        onHoldResult = { recognized ->
-            val spoken = recognized.trim()
-            if (spoken.isEmpty()) return@rememberSpeechInput
-            val draft = textFieldState.text.toString()
-            val toSubmit = if (draft.isBlank()) {
-                spoken
-            } else {
-                textFieldState.edit {
-                    val range = selection
-                    replace(range.min, range.max, spoken)
-                    selection = TextRange(range.min + spoken.length)
-                }
-                textFieldState.text.toString().trim()
-            }
-            textFieldState.clearText()
-            onSubmit(toSubmit)
-        },
-        onResult = { recognized ->
-            textFieldState.edit {
-                val range = selection
-                replace(range.min, range.max, recognized)
-                selection = TextRange(range.min + recognized.length)
-            }
-        },
-    )
-    val dictationState by dictation.state.collectAsState()
-    var holdCancelling by remember { mutableStateOf(false) }
-    val isHoldingSpeech =
-        dictationState.active && dictationState.holdToTalk &&
-            dictationState.phase != io.github.mangi.eta.agent.voice.EtaSpeechPhase.RECOGNIZING
-    LaunchedEffect(isHoldingSpeech) {
-        if (!isHoldingSpeech) holdCancelling = false
-    }
-    LaunchedEffect(isEditingMessage, recognitionEnabled) { dictation.cancel() }
     var wasEditingMessage by remember { mutableStateOf(isEditingMessage) }
     var syncedVersion by remember { mutableIntStateOf(inputSyncVersion) }
     val canSend = textFieldState.text.isNotBlank() ||
@@ -245,7 +202,6 @@ internal fun AgentChatInputBar(
         modifier = modifier
             .fillMaxWidth(),
     ) {
-        if (recognitionEnabled) SpeechInputFeedback(dictation, holdCancelling = holdCancelling)
         AnimatedVisibility(
             visible = queuedMessages.isNotEmpty(),
             enter = fadeIn(tween(160)) + expandVertically(
@@ -349,20 +305,8 @@ internal fun AgentChatInputBar(
         } else {
             MiuixTheme.colorScheme.outline.copy(alpha = 0.5f)
         }
-        val inputBorderColor by animateColorAsState(
-            targetValue = when {
-                isHoldingSpeech && holdCancelling -> StatusError.copy(alpha = 0.45f)
-                isHoldingSpeech -> MiuixTheme.colorScheme.primary.copy(alpha = 0.38f)
-                else -> defaultInputBorderColor
-            },
-            animationSpec = tween(durationMillis = 180),
-            label = "input_container_border",
-        )
-        val inputBorderWidth by animateDpAsState(
-            targetValue = if (isHoldingSpeech) 1.dp else 0.5.dp,
-            animationSpec = tween(durationMillis = 160),
-            label = "input_container_border_width",
-        )
+        val inputBorderColor = defaultInputBorderColor
+        val inputBorderWidth = 0.5.dp
         val miuixInputShape = remember { GlassShape(24.dp) }
         var inputContainerTopPx by remember { mutableFloatStateOf(0f) }
         Box(
@@ -424,13 +368,6 @@ internal fun AgentChatInputBar(
                                             cornerRadius = 24.dp,
                                         ),
                                 )
-                                .then(
-                                    if (isHoldingSpeech && glassBackdrop != null && isRuntimeShaderSupported()) {
-                                        Modifier.border(inputBorderWidth, inputBorderColor, miuixInputShape)
-                                    } else {
-                                        Modifier
-                                    },
-                                )
                         },
                     )
                     .padding(horizontal = 10.dp, vertical = 8.dp),
@@ -449,29 +386,18 @@ internal fun AgentChatInputBar(
                     )
                     val character = LocalRoleplayChat.current
                     if (textFieldState.text.isBlank()) {
-                        val hintColor by animateColorAsState(
-                            targetValue = when {
-                                isHoldingSpeech && holdCancelling -> StatusError
-                                isHoldingSpeech -> MiuixTheme.colorScheme.primary
-                                else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-                            },
-                            animationSpec = tween(durationMillis = 150),
-                            label = "input_hint_color",
-                        )
+                        // 角色对话的占位文字跟随角色，避免“交给 Eta”打断沉浸感。
+                        val hintText = when {
+                            character != null && isStreaming ->
+                                stringResource(R.string.chat_character_typing, character.characterName)
+                            character != null -> stringResource(R.string.chat_character_input_hint, character.characterName)
+                            isStreaming -> stringResource(R.string.chat_eta_working)
+                            else -> stringResource(R.string.chat_input_hint)
+                        }
                         Text(
-                            text = when {
-                                isHoldingSpeech && holdCancelling ->
-                                    stringResource(R.string.speech_hold_release_to_cancel)
-                                isHoldingSpeech -> stringResource(R.string.voice_release_to_send)
-                                // 角色对话的占位文字跟随角色，避免“交给 Eta”打断沉浸感。
-                                character != null && isStreaming ->
-                                    stringResource(R.string.chat_character_typing, character.characterName)
-                                character != null -> stringResource(R.string.chat_character_input_hint, character.characterName)
-                                isStreaming -> stringResource(R.string.chat_eta_working)
-                                else -> stringResource(R.string.chat_input_hint)
-                            },
+                            text = hintText,
                             style = inputTextStyle,
-                            color = hintColor,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
                     }
                     BasicTextField(
@@ -541,20 +467,9 @@ internal fun AgentChatInputBar(
                             Spacer(modifier = Modifier.width(2.dp))
                         }
 
-                        if (recognitionEnabled) {
-                            SpeechDictationButton(
-                                controller = dictation,
-                                enabled = !isCompacting,
-                                holdCancelling = holdCancelling,
-                                onHoldCancellingChange = { holdCancelling = it },
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                        }
-
                         val showStreamingSend = isStreaming && !isCompacting && canSend
                         val submitCurrentDraft: (Boolean) -> Unit = { interrupt ->
                             if (canSend) {
-                                dictation.cancel()
                                 val submittedText = textFieldState.text.toString()
                                 textFieldState.clearText()
                                 if (interrupt) {

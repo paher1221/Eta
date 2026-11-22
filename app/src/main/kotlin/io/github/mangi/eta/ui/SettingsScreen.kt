@@ -26,7 +26,6 @@ import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.JoinLeft
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Settings
@@ -518,13 +517,6 @@ private fun SettingsPageContent(
                         )
                     }
                     item {
-                        CouiPreference(
-                            title = stringResource(R.string.speech_settings_title),
-                            icon = { CouiSettingsIcon(Icons.Rounded.Mic, SettingsIconColors.Blue) },
-                            onClick = { onNavigate(AppRoute.SpeechSettings) },
-                        )
-                    }
-                    item {
                         LanguagePreference(
                             iconTint = SettingsIconColors.Blue,
                             startAction = {
@@ -779,11 +771,6 @@ private fun SettingsPageContent(
                             title = stringResource(R.string.appearance_title),
                             startAction = { SettingsIcon(Icons.Rounded.Palette) },
                             onClick = { onNavigate(AppRoute.AppearanceSettings) },
-                        )
-                        ArrowPreference(
-                            title = stringResource(R.string.speech_settings_title),
-                            startAction = { SettingsIcon(Icons.Rounded.Mic) },
-                            onClick = { onNavigate(AppRoute.SpeechSettings) },
                         )
                         LanguagePreference(
                             startAction = { SettingsIcon(Icons.Rounded.Language) },

@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Parcel
 import io.github.mangi.eta.ui.app.ArchivedConversationRequest
-import io.github.mangi.eta.ui.voice.ACTION_SPEECH_SETTINGS
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,7 +33,6 @@ class MainActivityLaunchRequestsTest {
         val pending = MainActivityLaunchRequests(
             conversationId = "conversation",
             archivedConversation = ArchivedConversationRequest("source", "archive"),
-            speechSettings = true,
             terminal = true,
         )
 
@@ -63,10 +61,6 @@ class MainActivityLaunchRequestsTest {
         assertEquals(
             MainActivityLaunchRequests(terminal = true),
             restored.accept(Intent(MainActivity.ACTION_OPEN_TERMINAL)),
-        )
-        assertEquals(
-            MainActivityLaunchRequests(speechSettings = true),
-            restored.accept(Intent(ACTION_SPEECH_SETTINGS)),
         )
         assertEquals(
             MainActivityLaunchRequests(archivedConversation = ArchivedConversationRequest("source", "archive")),

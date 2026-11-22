@@ -1,6 +1,5 @@
 package io.github.mangi.eta
 
-import io.github.mangi.eta.agent.voice.SpeechOssUpload
 import android.app.Application
 import android.content.ComponentCallbacks2
 import io.github.mangi.eta.agent.skill.SkillRuntime
@@ -58,14 +57,6 @@ class EtaApp : Application() {
                 AndroidAgentLogger.warn(
                     "Scheduled task reconcile failed: type=${throwable.safeLogType()}"
                 )
-            }
-        }
-        applicationScope.launch {
-            try {
-                SpeechOssUpload(this@EtaApp).retryPending(this@EtaApp)
-            } catch (error: Exception) {
-                if (error is kotlinx.coroutines.CancellationException) throw error
-                AndroidAgentLogger.warn("Eta speech cleanup unavailable: type=${error.javaClass.simpleName}")
             }
         }
         applicationScope.launch {

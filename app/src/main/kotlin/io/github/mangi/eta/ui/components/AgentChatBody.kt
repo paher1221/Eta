@@ -91,8 +91,6 @@ import io.github.mangi.eta.ui.model.ToolSummaryMessageUi
 import io.github.mangi.eta.ui.model.UserMessageUi
 import io.github.mangi.eta.ui.model.branchMessageOutline
 import io.github.mangi.eta.ui.model.latestContextUsage
-import io.github.mangi.eta.ui.voice.SpeechAutoReadAloud
-import io.github.mangi.eta.ui.voice.SpeechPlaybackHost
 import io.github.suqi8.coui.kmp.blur.layerBackdrop
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -227,9 +225,7 @@ internal fun AgentChatBody(
         }
     }
 
-    SpeechPlaybackHost {
-        SpeechAutoReadAloud(messages = messages, isStreaming = isStreaming)
-        AgentChatScaffold(
+    AgentChatScaffold(
             visibleMessages = visibleMessages,
             hasMessages = visibleMessages.isNotEmpty() || hasEarlierMessages,
             scrollState = scrollState,
@@ -296,7 +292,6 @@ internal fun AgentChatBody(
             topInset = topInset,
             modifier = modifier,
         )
-    }
 }
 
 @Composable

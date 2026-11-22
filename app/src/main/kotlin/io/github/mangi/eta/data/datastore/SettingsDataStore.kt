@@ -19,7 +19,6 @@ import io.github.mangi.eta.data.model.AppearanceTopBarBlurStyle
 import io.github.mangi.eta.data.model.AppearanceUiStyle
 import io.github.mangi.eta.data.model.ConversationTitleSettings
 import io.github.mangi.eta.data.model.ImageGenSettings
-import io.github.mangi.eta.data.model.SpeechSettings
 import io.github.mangi.eta.data.model.SubagentSettings
 import io.github.mangi.eta.data.model.WebToolsSettings
 import kotlinx.serialization.json.Json
@@ -31,7 +30,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 internal object SettingsDataStore {
-    private val SPEECH_SETTINGS = stringPreferencesKey("speech_settings_v1")
     private val WEB_TOOLS_SETTINGS = stringPreferencesKey("web_tools_settings_v1")
     private val IMAGE_GEN_SETTINGS = stringPreferencesKey("image_gen_settings_v1")
     private val SUBAGENT_SETTINGS = stringPreferencesKey("subagent_settings_v1")
@@ -40,21 +38,6 @@ internal object SettingsDataStore {
         ignoreUnknownKeys = true
         encodeDefaults = true
         coerceInputValues = true
-    }
-
-    fun speechSettingsFlow(): Flow<SpeechSettings> {
-        ensureInitialized()
-        return dataStore.data.map { prefs ->
-            prefs[SPEECH_SETTINGS]?.let { speechJson.decodeFromString<SpeechSettings>(it) }
-                ?: SpeechSettings()
-        }
-    }
-
-    suspend fun speechSettings() = speechSettingsFlow().first()
-
-    suspend fun setSpeechSettings(settings: SpeechSettings) {
-        ensureInitialized()
-        dataStore.edit { it[SPEECH_SETTINGS] = speechJson.encodeToString(settings) }
     }
 
     fun webToolsSettingsFlow(): Flow<WebToolsSettings> {

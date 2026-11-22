@@ -134,13 +134,6 @@ internal object FakeAgentUiStates {
                 primaryActionLabel = null,
             ),
             PermissionHealthItemUi(
-                id = "location",
-                title = "位置权限",
-                summary = "仅在 Agent 调用工具时读取",
-                status = PermissionStatusUi.Available,
-                primaryActionLabel = null,
-            ),
-            PermissionHealthItemUi(
                 id = "root",
                 title = "Root 权限",
                 summary = "未获得，部分终端命令受限",
@@ -193,15 +186,6 @@ internal object FakeAgentUiStates {
                     ToolItemUi("browser_read", "阅读网页", "提取渲染后的网页正文"),
                     ToolItemUi("browser_interact", "网页交互", "查找、点击和输入元素"),
                     ToolItemUi("browser_screenshot", "页面截图", "把网页视口交给视觉模型"),
-                ),
-            ),
-            ToolGroupUi(
-                id = "app",
-                title = "App 与 URI",
-                tools = listOf(
-                    ToolItemUi("get_current_context", "时间与位置", "读取系统时间与最近位置"),
-                    ToolItemUi("launch_app", "打开 App", "通过包名启动应用"),
-                    ToolItemUi("open_uri", "用应用打开", "显式交给外部应用处理"),
                 ),
             ),
             ToolGroupUi(

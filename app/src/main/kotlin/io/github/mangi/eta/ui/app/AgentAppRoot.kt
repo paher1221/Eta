@@ -45,7 +45,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.device.DeviceLocationProvider
 import io.github.mangi.eta.agent.runtime.AgentRuntimeService
 import io.github.mangi.eta.agent.runtime.AgentRuntimeWire
 import io.github.mangi.eta.ui.screens.scheduled.ScheduledTaskDetailScreen
@@ -92,7 +91,6 @@ import io.github.mangi.eta.ui.screens.mcp.McpServerDetailScreen
 import io.github.mangi.eta.ui.screens.mcp.McpServersScreen
 import io.github.mangi.eta.ui.screens.memory.AgentMemoryScreen
 import io.github.mangi.eta.ui.screens.permissions.PermissionHealthScreen
-import io.github.mangi.eta.ui.screens.settings.AssistantOverlaySettingsScreen
 import io.github.mangi.eta.ui.screens.settings.ConversationTitleSettingsScreen
 import io.github.mangi.eta.ui.screens.skills.AgentSkillsScreen
 import io.github.mangi.eta.ui.screens.subagent.SubagentSettingsScreen
@@ -130,7 +128,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  */
 @Composable
 fun AgentAppRoot(
-    assistantConversationKey: String? = null,
     requestedConversationId: String? = null,
     onRequestedConversationOpened: () -> Unit = {},
     requestedArchivedConversation: ArchivedConversationRequest? = null,
@@ -143,7 +140,6 @@ fun AgentAppRoot(
     openTerminal: Boolean = false,
     onTerminalOpened: () -> Unit = {},
     onSpeechSettingsOpened: () -> Unit = {},
-    onAssistantConversationOpened: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -180,11 +176,6 @@ fun AgentAppRoot(
     val communityCatalogStore = viewModel<CommunityCatalogViewModel>().store
     val requestExecutionNotifications = rememberExecutionNotificationRequest()
     val requestLocalNetworkPermission = rememberLocalNetworkPermissionRequest(permissionHealth::refreshPermissionHealth)
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) {
-        permissionHealth.refreshPermissionHealth()
-    }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -263,17 +254,6 @@ fun AgentAppRoot(
         conversationPaneOpen = false
         navigator.push(AppRoute.ScheduledTaskDetail(taskId))
         onScheduledTaskOpened()
-    }
-
-    LaunchedEffect(assistantConversationKey) {
-        val conversationKey = assistantConversationKey ?: return@LaunchedEffect
-        val opened = agentState.openAssistantConversation(conversationKey)
-        if (opened) {
-            conversationPaneOpen = false
-            // 接管落到主聊天舞台：与主界面同一页面、同一侧边对话列表，不再开独立对话页。
-            navigator.popToHome()
-        }
-        onAssistantConversationOpened(opened)
     }
 
     LaunchedEffect(sharedContent) {
@@ -528,9 +508,6 @@ fun AgentAppRoot(
                     entry<AppRoute.ConversationTitleSettings>(swipeDismiss = activeSwipeDismiss) {
                         ConversationTitleSettingsScreen(onBack = ::popRoute)
                     }
-                    entry<AppRoute.AssistantOverlaySettings>(swipeDismiss = activeSwipeDismiss) {
-                        AssistantOverlaySettingsScreen(onBack = ::popRoute)
-                    }
                     entry<AppRoute.Skills>(swipeDismiss = activeSwipeDismiss) {
                         LaunchedEffect(Unit) {
                             skills.refreshSkills()
@@ -605,8 +582,6 @@ fun AgentAppRoot(
                                     is PermissionHealthAction.OpenItemAction -> {
                                         when (action.itemId) {
                                             LOCAL_NETWORK_PERMISSION_ITEM_ID -> requestLocalNetworkPermission()
-                                            "calendar" -> locationPermissionLauncher.launch(io.github.mangi.eta.agent.device.CalendarPermissions.requested)
-                                            "notification_policy" -> context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
                                             "overlay" -> {
                                                 runCatching {
                                                     context.startActivity(
@@ -630,48 +605,6 @@ fun AgentAppRoot(
                                                             Uri.parse("package:${context.packageName}")
                                                         )
                                                     )
-                                                }
-                                            }
-                                            "location" -> {
-                                                when (DeviceLocationProvider.accessState(context)) {
-                                                    DeviceLocationProvider.AccessState.DENIED -> {
-                                                        locationPermissionLauncher.launch(
-                                                            arrayOf(
-                                                                Manifest.permission.ACCESS_COARSE_LOCATION,
-                                                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                                            )
-                                                        )
-                                                    }
-                                                    DeviceLocationProvider.AccessState.FOREGROUND_ONLY -> {
-                                                        runCatching {
-                                                            context.startActivity(
-                                                                Intent(
-                                                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                                                    Uri.parse("package:${context.packageName}")
-                                                                )
-                                                            )
-                                                        }
-                                                    }
-                                                    DeviceLocationProvider.AccessState.DISABLED -> {
-                                                        runCatching {
-                                                            context.startActivity(
-                                                                Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                                                            )
-                                                        }
-                                                    }
-                                                    DeviceLocationProvider.AccessState.AVAILABLE -> {
-                                                        permissionHealth.refreshPermissionHealth()
-                                                    }
-                                                }
-                                            }
-                                            "notification_history" -> {
-                                                runCatching {
-                                                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                                                }
-                                            }
-                                            "usage_access" -> {
-                                                runCatching {
-                                                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                                                 }
                                             }
                                             "notifications" -> {

@@ -244,9 +244,6 @@ class GrokResponsesRequestTest {
     private fun fullToolCatalog(): JSONArray = AgentToolCatalog.build(
         terminalTools = true,
         browserTools = true,
-        deviceDirectTools = true,
-        deviceSensitiveReadTools = true,
-        deviceSensitiveActionTools = true,
         skillGitHubDiscovery = true,
         skillGitHubInstall = true,
         memoryTools = true,

@@ -3,6 +3,7 @@ package io.github.mangi.eta.ui.model
 import io.github.mangi.eta.agent.tool.AgentToolCapabilities
 import io.github.mangi.eta.agent.tool.AgentToolRequirements
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -25,16 +26,25 @@ class ToolCapabilityProjectionTest {
     }
 
     @Test fun missingOrdinaryPermissionOpensPermissions() {
-        val capabilities = AgentToolCapabilities(notificationsAllowed = false)
-        assertEquals(AgentToolsAction.OpenPermissions, toolCardAction("recent_notifications", capabilities))
-        assertEquals(AgentToolsAction.OpenBrowser, toolCardAction("browser_read", capabilities))
+        val capabilities = AgentToolCapabilities()
+        assertNull(toolCardAction("browser_read", capabilities))
         assertEquals(AgentToolsAction.OpenWebToolsSettings, toolCardAction("web_search", capabilities))
         assertEquals(AgentToolsAction.OpenWebToolsSettings, toolCardAction("fetch_url", capabilities))
-        assertEquals(null, toolCardAction("terminal", capabilities))
+        assertNull(toolCardAction("terminal", capabilities))
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun unknownCardCannotSilentlyAcquireCapabilityDefaults() {
         toolCardRequirement("unknown")
+    }
+
+    @Test fun removedToolCardsAreNotProjected() {
+        val capabilities = AgentToolCapabilities()
+        assertTrue(
+            listOf(
+                "recent_notifications", "app_usage_summary", "get_current_location",
+                "launch_app", "open_uri", "set_volume", "media_control",
+            ).none { id -> capabilities.unavailableCode(id) == null && AgentToolRequirements.find(id) != null }
+        )
     }
 }

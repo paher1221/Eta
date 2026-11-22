@@ -27,9 +27,6 @@ class AgentFileVisionToolCatalogTest {
         AgentToolCatalog.build(
             terminalTools = terminalTools,
             browserTools = false,
-            deviceDirectTools = false,
-            deviceSensitiveReadTools = sensitiveReads,
-            deviceSensitiveActionTools = false,
         ).toolNames()
 
     private fun JSONArray.toolNames(): Set<String> =

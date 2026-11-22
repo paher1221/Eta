@@ -146,16 +146,10 @@ class ScheduledTaskScheduleCalculatorTest {
             globalThinkingEnabled = true,
             globalBrowserTools = true,
             globalTerminalTools = true,
-            globalDeviceDirectTools = true,
-            globalDeviceSensitiveReadTools = true,
-            globalDeviceSensitiveActionTools = true,
             globalSubagentTools = true,
         )
         assertTrue(resolved.browserTools)
         assertTrue(resolved.terminalTools)
-        assertTrue(resolved.deviceDirectTools)
-        assertTrue(resolved.deviceSensitiveReadTools)
-        assertFalse(resolved.deviceSensitiveActionTools)
         assertTrue(resolved.subagentTools)
     }
 }

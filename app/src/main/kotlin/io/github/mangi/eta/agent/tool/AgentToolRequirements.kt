@@ -5,7 +5,7 @@ import org.json.JSONObject
 import io.github.mangi.eta.agent.model.AgentTerminalToolCatalog
 import io.github.mangi.eta.agent.model.AgentFileToolCatalog
 
-internal enum class ToolSystemAccess { NONE, NOTIFICATIONS, USAGE, LOCATION, CALENDAR_READ, CALENDAR_WRITE }
+internal enum class ToolSystemAccess { NONE }
 
 internal data class LocalToolRequirement(
     val systemAccess: ToolSystemAccess = ToolSystemAccess.NONE,
@@ -21,32 +21,21 @@ internal object AgentToolRequirements {
             }
         }
         register(
-            "get_current_context", "search_apps", "launch_app", "present_to_user", "open_uri", "browser_use", "web_search", "fetch_url",
+            "browser_use", "web_search", "fetch_url",
             "set_clipboard", "get_clipboard",
-            "set_alarm", "set_timer", "device_status", "inspect_app", "media_control", "set_volume",
-            "get_flashlight", "set_flashlight", "get_display_state", "get_sound_state", "set_do_not_disturb",
-            "search_notification_history", "recent_app_activity", "app_usage_summary",
-            "get_current_location", "get_device_environment", "memory_get", "memory_write",
+            "memory_get", "memory_write",
             "character_memory_get", "character_memory_write",
             "skills_list", "skills_read", "skills_read_resource", "skills_list_curated",
             "skills_inspect_github", "skills_install_from_github",
             "generate_image",
         )
         register(
-            "network_info", "recent_notifications",
             "terminal", "terminal_job", "terminal_daemon", "read_file",
             "write_file", "list_directory", "read_image", "edit_file", "stat_file", "glob_files", "grep_files",
         )
         listOf(
-            "launch_app", "present_to_user", "open_uri", "set_clipboard", "get_clipboard",
+            "set_clipboard", "get_clipboard",
         ).forEach { name -> put(name, getValue(name).copy(gui = true)) }
-        mapOf(
-            "recent_notifications" to ToolSystemAccess.NOTIFICATIONS,
-            "search_notification_history" to ToolSystemAccess.NOTIFICATIONS,
-            "recent_app_activity" to ToolSystemAccess.USAGE,
-            "app_usage_summary" to ToolSystemAccess.USAGE,
-            "get_current_location" to ToolSystemAccess.LOCATION,
-        ).forEach { (name, access) -> put(name, getValue(name).copy(systemAccess = access)) }
     }
 
     val toolNames: Set<String> get() = definitions.keys
@@ -54,8 +43,6 @@ internal object AgentToolRequirements {
     fun find(name: String): LocalToolRequirement? = definitions[name]
 
     fun requiresGuiControl(name: String?): Boolean = name?.let(::find)?.gui == true
-
-    fun hasForegroundIntentFallback(name: String?): Boolean = name == "set_alarm" || name == "set_timer"
 
     /** 复制后收窄，不能修改下一轮或另一个 run 共用的原始 Schema。 */
     fun project(tools: JSONArray): JSONArray = JSONArray().also { result ->

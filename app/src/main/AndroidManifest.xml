@@ -4,9 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
-    <uses-permission android:name="android.permission.READ_ASSIST_STRUCTURE_SCREEN_CONTENT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -17,17 +15,7 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.READ_CALENDAR" />
-    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -38,7 +26,6 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <queries>
-        <package android:name="com.google.android.googlequicksearchbox" />
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
@@ -88,58 +75,6 @@
             android:theme="@style/Theme.Eta"
             android:windowSoftInputMode="adjustResize" />
 
-        <activity
-            android:name=".agent.voice.EtaVoiceAssistActivity"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:noHistory="true"
-            android:process=":voice"
-            android:showWhenLocked="true"
-            android:theme="@style/Theme.EtaVoiceAssistBridge">
-            <intent-filter>
-                <action android:name="android.intent.action.ASSIST" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
-        <service
-            android:name=".agent.voice.EtaVoiceInteractionService"
-            android:exported="true"
-            android:label="@string/voice_interaction_service_label"
-            android:permission="android.permission.BIND_VOICE_INTERACTION"
-            android:process=":voice">
-            <intent-filter>
-                <action android:name="android.service.voice.VoiceInteractionService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.voice_interaction"
-                android:resource="@xml/voice_interaction_service" />
-        </service>
-
-        <service
-            android:name=".agent.voice.EtaVoiceInteractionSessionService"
-            android:exported="true"
-            android:permission="android.permission.BIND_VOICE_INTERACTION" />
-
-        <service
-            android:name=".agent.voice.EtaRecognitionService"
-            android:exported="true"
-            android:label="@string/recognition_service_label"
-            android:permission="android.permission.BIND_SPEECH_RECOGNITION_SERVICE"
-            android:process=":recognition">
-            <intent-filter>
-                <action android:name="android.speech.RecognitionService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.speech"
-                android:resource="@xml/recognition_service" />
-        </service>
-
-        <service
-            android:name=".agent.voice.EtaAssistantOverlayService"
-            android:foregroundServiceType="microphone|mediaPlayback"
-            android:exported="false" />
-
         <service
             android:name=".agent.voice.ReadAloudPlaybackService"
             android:exported="false"
@@ -156,16 +91,6 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-initiated interactive terminals, local Linux services and device automation tasks" />
-        </service>
-
-        <service
-            android:name=".agent.device.AgentNotificationHistoryService"
-            android:exported="false"
-            android:label="@string/notification_history_service_label"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
         </service>
 
         <receiver

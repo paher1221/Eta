@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Parcel
-import io.github.mangi.eta.agent.voice.EtaAssistantOverlayService
 import io.github.mangi.eta.ui.app.ArchivedConversationRequest
 import io.github.mangi.eta.ui.voice.ACTION_SPEECH_SETTINGS
 import org.junit.Assert.assertEquals
@@ -19,11 +18,11 @@ import org.robolectric.annotation.Config
 class MainActivityLaunchRequestsTest {
     @Test
     fun `重建不重新执行已消费的启动会话`() {
-        val originalIntent = Intent(EtaAssistantOverlayService.ACTION_OPEN_CONVERSATION)
-            .putExtra(EtaAssistantOverlayService.EXTRA_CONVERSATION_KEY, "old-conversation")
+        val originalIntent = Intent(MainActivity.ACTION_OPEN_CONVERSATION_ID)
+            .putExtra(MainActivity.EXTRA_CONVERSATION_ID, "old-conversation")
         val pending = MainActivityLaunchRequests.restore(null, originalIntent)
-        assertEquals("old-conversation", pending.assistantConversationKey)
-        val consumed = pending.copy(assistantConversationKey = null)
+        assertEquals("old-conversation", pending.conversationId)
+        val consumed = pending.copy(conversationId = null)
 
         val restored = MainActivityLaunchRequests.restore(savedState(consumed), originalIntent)
 
@@ -33,7 +32,6 @@ class MainActivityLaunchRequestsTest {
     @Test
     fun `重建保留尚未完成的跳转且不被原始 Intent 覆盖`() {
         val pending = MainActivityLaunchRequests(
-            assistantConversationKey = "assistant",
             conversationId = "conversation",
             archivedConversation = ArchivedConversationRequest("source", "archive"),
             speechSettings = true,

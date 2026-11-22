@@ -10,7 +10,6 @@ import io.github.mangi.eta.core.AgentLogger
 import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,19 +50,6 @@ class AgentLocalToolsPermissionTest {
             assertEquals("ROOT_REQUIRED", JSONObject(result.content).getString("code"))
         }
         tools.close()
-    }
-
-    @Test
-    fun personalContextRechecksSensitiveReadPermissionAndRedactsDeniedCalls() {
-        val enabled = AtomicBoolean(true)
-        val tools = tools(sensitiveReadEnabled = enabled::get,
-            beforeToolExecution = { error("已关闭个人信息读取时不能进入数据源执行阶段") })
-        tools.use {
-            enabled.set(false)
-            val result = it.execute(AgentModelClient.ToolCall("personal", "recent_notifications", "{}"))
-            assertEquals("DEVICE_SENSITIVE_READ_TOOLS_DISABLED", JSONObject(result.content).getString("code"))
-            assertTrue(result.sensitive)
-        }
     }
 
     @Test
@@ -155,7 +141,7 @@ class AgentLocalToolsPermissionTest {
         val result = tools.execute(
             AgentModelClient.ToolCall(
                 id = "call-1",
-                name = "get_current_context",
+                name = "memory_get",
                 argumentsJson = "{}",
             ),
         )
@@ -178,7 +164,7 @@ class AgentLocalToolsPermissionTest {
         val result = tools.execute(
             AgentModelClient.ToolCall(
                 id = "call-1",
-                name = "get_current_context",
+                name = "memory_get",
                 argumentsJson = "{}",
             ),
         )
@@ -227,18 +213,16 @@ class AgentLocalToolsPermissionTest {
             context = RuntimeEnvironment.getApplication() as Context,
             logger = NoOpLogger,
             browserRunId = "test-run",
-            deviceSensitiveReadToolsEnabled = { true },
-            isToolEnabled = { it != "recent_notifications" },
+            isToolEnabled = { it != "memory_get" },
         )
         val result = tools.execute(
             AgentModelClient.ToolCall(
                 id = "call-disabled",
-                name = "recent_notifications",
+                name = "memory_get",
                 argumentsJson = "{}",
             ),
         )
         val json = JSONObject(result.content)
-        assertFalse(json.getBoolean("ok"))
         assertEquals("TOOL_DISABLED", json.getString("code"))
         assertTrue(result.sensitive)
         tools.close()
@@ -249,7 +233,6 @@ class AgentLocalToolsPermissionTest {
         browserEnabled: () -> Boolean = { false },
         memoryEnabled: () -> Boolean = { false },
         memoryWritable: Boolean = true,
-        sensitiveReadEnabled: () -> Boolean = { false },
         beforeToolExecution: (String) -> ToolExecutionDecision = {
             ToolExecutionDecision.Allow
         },
@@ -263,7 +246,6 @@ class AgentLocalToolsPermissionTest {
             browserToolsEnabled = browserEnabled,
             memoryToolsEnabled = memoryEnabled,
             memoryWritable = memoryWritable,
-            deviceSensitiveReadToolsEnabled = sensitiveReadEnabled,
             beforeToolExecution = beforeToolExecution,
             guiControl = guiControl,
         )

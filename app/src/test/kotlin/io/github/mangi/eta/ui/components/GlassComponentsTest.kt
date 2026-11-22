@@ -425,7 +425,7 @@ class GlassComponentsTest {
                     id = "root",
                     title = "高级",
                     tools = listOf(
-                        ToolItemUi(id = "device_status", title = "设备状态", summary = "读取系统状态"),
+                        ToolItemUi(id = "memory_get", title = "记忆", summary = "读取记忆"),
                     ),
                 ),
             ),

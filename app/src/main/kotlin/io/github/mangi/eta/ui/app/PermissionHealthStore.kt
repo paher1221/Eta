@@ -1,6 +1,5 @@
 package io.github.mangi.eta.ui.app
 
-import android.content.ComponentName
 import android.content.Context
 import android.os.PowerManager
 import android.provider.Settings
@@ -8,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.mangi.eta.R
-import io.github.mangi.eta.agent.device.DeviceLocationProvider
 import io.github.mangi.eta.ui.model.PermissionHealthItemUi
 import io.github.mangi.eta.ui.model.PermissionHealthUiState
 import io.github.mangi.eta.ui.model.PermissionStatusUi
@@ -42,12 +40,8 @@ internal class PermissionHealthStore(
 
 private fun buildPermissionHealthState(context: Context): PermissionHealthUiState {
     val backgroundRunningEnabled = isIgnoringBatteryOptimizations(context)
-    val overlayEnabled = Settings.canDrawOverlays(context)
     val appListEnabled = hasAppListAccess(context)
     val notificationsEnabled = context.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled()
-    val locationAccess = DeviceLocationProvider.accessState(context)
-    val notificationHistoryEnabled = io.github.mangi.eta.agent.device.AgentNotificationHistoryService.isEnabled(context)
-    val usageAccessEnabled = io.github.mangi.eta.agent.tool.AgentPersonalContextTools.hasUsageAccess(context)
 
     return PermissionHealthUiState(
         items = listOfNotNull(
@@ -59,13 +53,6 @@ private fun buildPermissionHealthState(context: Context): PermissionHealthUiStat
                 primaryActionLabel = if (backgroundRunningEnabled) null else context.getString(R.string.state_ui_to_open_13ec17),
             ),
             PermissionHealthItemUi(
-                id = "overlay",
-                title = context.getString(R.string.state_floating_window_permissions_076b77),
-                summary = "",
-                status = if (overlayEnabled) PermissionStatusUi.Available else PermissionStatusUi.Missing,
-                primaryActionLabel = if (overlayEnabled) null else context.getString(R.string.state_ui_to_authorize_762ec4),
-            ),
-            PermissionHealthItemUi(
                 id = "app_list",
                 title = context.getString(R.string.state_application_list_reading_135f16),
                 summary = "",
@@ -73,60 +60,6 @@ private fun buildPermissionHealthState(context: Context): PermissionHealthUiStat
                 primaryActionLabel = if (appListEnabled) null else context.getString(R.string.state_ui_to_open_13ec17),
             ),
             localNetworkPermissionHealthItem(context),
-            PermissionHealthItemUi(
-                id = "calendar",
-                title = context.getString(R.string.ui_misc_perm_calendar_title),
-                summary = context.getString(R.string.ui_misc_perm_calendar_summary),
-                status = if (io.github.mangi.eta.agent.device.CalendarPermissions.granted(context, true)) PermissionStatusUi.Available else PermissionStatusUi.Missing,
-                primaryActionLabel = if (io.github.mangi.eta.agent.device.CalendarPermissions.granted(context, true)) null else context.getString(R.string.ui_misc_perm_action_authorize),
-            ),
-            PermissionHealthItemUi(
-                id = "notification_policy",
-                title = context.getString(R.string.ui_misc_perm_dnd_title),
-                summary = context.getString(R.string.ui_misc_perm_dnd_summary),
-                status = if (context.getSystemService(android.app.NotificationManager::class.java)?.isNotificationPolicyAccessGranted == true) PermissionStatusUi.Available else PermissionStatusUi.Missing,
-                primaryActionLabel = context.getString(R.string.action_settings),
-            ),
-            PermissionHealthItemUi(
-                id = "location",
-                title = context.getString(R.string.state_location_permissions_b53f9c),
-                summary = when (locationAccess) {
-                    DeviceLocationProvider.AccessState.DENIED -> context.getString(R.string.state_ui_used_to_understand_the_location_of_mobile_phones_af52e9)
-                    DeviceLocationProvider.AccessState.FOREGROUND_ONLY -> context.getString(R.string.capability_location_foreground)
-                    DeviceLocationProvider.AccessState.DISABLED -> context.getString(R.string.state_ui_system_location_service_is_turned_off_3902e7)
-                    DeviceLocationProvider.AccessState.AVAILABLE -> context.getString(R.string.state_ui_only_read_when_the_agent_calls_the_tool_8cf77b)
-                },
-                status = when (locationAccess) {
-                    DeviceLocationProvider.AccessState.DENIED -> PermissionStatusUi.Missing
-                    DeviceLocationProvider.AccessState.FOREGROUND_ONLY -> PermissionStatusUi.Warning
-                    DeviceLocationProvider.AccessState.DISABLED -> PermissionStatusUi.Disabled
-                    DeviceLocationProvider.AccessState.AVAILABLE -> PermissionStatusUi.Available
-                },
-                primaryActionLabel = when (locationAccess) {
-                    DeviceLocationProvider.AccessState.DENIED -> context.getString(R.string.state_ui_to_authorize_762ec4)
-                    DeviceLocationProvider.AccessState.FOREGROUND_ONLY -> context.getString(R.string.state_ui_go_to_settings_1f2998)
-                    DeviceLocationProvider.AccessState.DISABLED -> context.getString(R.string.state_ui_to_open_13ec17)
-                    DeviceLocationProvider.AccessState.AVAILABLE -> null
-                },
-            ),
-            PermissionHealthItemUi(
-                id = "notification_history",
-                title = context.getString(R.string.state_notice_of_use_rights_1ae29a),
-                summary = if (notificationHistoryEnabled) {
-                    context.getString(R.string.state_ui_natively_bounded_storage_of_last_7_days_of_notif_ca7f01)
-                } else {
-                    context.getString(R.string.state_ui_start_logging_searchable_notification_history_af_b36af6)
-                },
-                status = if (notificationHistoryEnabled) PermissionStatusUi.Available else PermissionStatusUi.Missing,
-                primaryActionLabel = if (notificationHistoryEnabled) null else context.getString(R.string.state_ui_to_authorize_762ec4),
-            ),
-            PermissionHealthItemUi(
-                id = "usage_access",
-                title = context.getString(R.string.state_usage_access_20f1f8),
-                summary = context.getString(R.string.state_used_to_read_recently_opened_applications_and_foregr_73e796),
-                status = if (usageAccessEnabled) PermissionStatusUi.Available else PermissionStatusUi.Missing,
-                primaryActionLabel = if (usageAccessEnabled) null else context.getString(R.string.state_ui_to_authorize_762ec4),
-            ),
             PermissionHealthItemUi(
                 id = "notifications",
                 title = context.getString(R.string.capability_notifications_title),

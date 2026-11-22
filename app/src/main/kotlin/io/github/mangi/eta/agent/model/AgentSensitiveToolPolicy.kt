@@ -6,12 +6,6 @@ internal object AgentSensitiveToolPolicy {
         toolName.startsWith("mcp_") || toolName in sensitiveTools
 
     private val sensitiveTools = setOf(
-        "recent_notifications",
-        "search_notification_history",
-        "recent_app_activity",
-        "app_usage_summary",
-        "get_current_location",
-        "get_device_environment",
         "read_image",
         "memory_get",
         "memory_write",

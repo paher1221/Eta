@@ -17,10 +17,7 @@ internal object AgentRuntimeRequestConfigResolver {
     }
 
     fun requiresRuntimeConfig(request: AgentRuntimeWire.RunRequest): Boolean =
-        usesDefaultRuntimeConfig(request) || ProviderAuthModes.isOAuth(request.config.authMode)
-
-    fun usesDefaultRuntimeConfig(request: AgentRuntimeWire.RunRequest): Boolean =
-        request.handoff?.source == AgentRuntimeWire.ETA_VOICE_HANDOFF_SOURCE
+        ProviderAuthModes.isOAuth(request.config.authMode)
 
     /**
      * 只用 Runtime 侧的模型与凭据替换入口配置；工具开关保留入口请求的值，
@@ -33,23 +30,15 @@ internal object AgentRuntimeRequestConfigResolver {
     ): AgentRuntimeWire.RunRequest {
         if (!requiresRuntimeConfig(request)) return request
         val entry = request.config
-        val preserveReasoningChoice = !usesDefaultRuntimeConfig(request)
-        if (preserveReasoningChoice) {
-            require(
-                runtimeConfig.providerId == entry.providerId &&
-                    runtimeConfig.authMode == entry.authMode && runtimeConfig.model == entry.model
-            ) { "账号登录配置已变更，请重新选择服务商和模型" }
-        }
-        val effort = if (preserveReasoningChoice) {
-            runtimeConfig.reasoningCapabilities?.normalize(entry.effectiveReasoningEffort)
-                ?: runtimeConfig.effectiveReasoningEffort
-        } else runtimeConfig.effectiveReasoningEffort
+        require(
+            runtimeConfig.providerId == entry.providerId &&
+                runtimeConfig.authMode == entry.authMode && runtimeConfig.model == entry.model
+        ) { "账号登录配置已变更，请重新选择服务商和模型" }
+        val effort = runtimeConfig.reasoningCapabilities?.normalize(entry.effectiveReasoningEffort)
+            ?: runtimeConfig.effectiveReasoningEffort
         val config = runtimeConfig.copy(
             terminalTools = entry.terminalTools,
             browserTools = entry.browserTools,
-            deviceDirectTools = entry.deviceDirectTools,
-            deviceSensitiveReadTools = entry.deviceSensitiveReadTools,
-            deviceSensitiveActionTools = entry.deviceSensitiveActionTools,
             subagentTools = entry.subagentTools,
             thinkingEnabled = effort.enablesReasoning,
             reasoningEffort = effort,

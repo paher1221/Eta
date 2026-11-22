@@ -515,9 +515,6 @@ internal object ScheduledTaskRunner {
             globalThinkingEnabled = Prefs.isEnabled(Prefs.Keys.AGENT_THINKING_ENABLED),
             globalBrowserTools = Prefs.isEnabled(Prefs.Keys.AGENT_BROWSER_TOOLS),
             globalTerminalTools = Prefs.isEnabled(Prefs.Keys.AGENT_TERMINAL_TOOLS),
-            globalDeviceDirectTools = Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_DIRECT_TOOLS),
-            globalDeviceSensitiveReadTools = Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_READ_TOOLS),
-            globalDeviceSensitiveActionTools = Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_ACTION_TOOLS),
             globalSubagentTools = Prefs.isEnabled(Prefs.Keys.AGENT_SUBAGENT_ENABLED),
         )
     }
@@ -534,9 +531,6 @@ internal object ScheduledTaskRunner {
         globalThinkingEnabled: Boolean,
         globalBrowserTools: Boolean,
         globalTerminalTools: Boolean,
-        globalDeviceDirectTools: Boolean,
-        globalDeviceSensitiveReadTools: Boolean,
-        globalDeviceSensitiveActionTools: Boolean,
         globalSubagentTools: Boolean,
     ): AgentModelClient.ModelConfig {
         val explicitEffort = task.resolvedReasoningEffort
@@ -555,10 +549,6 @@ internal object ScheduledTaskRunner {
             reasoningEffort = effort,
             browserTools = globalBrowserTools && task.capabilities.browserTools,
             terminalTools = globalTerminalTools && task.capabilities.terminalTools,
-            deviceDirectTools = globalDeviceDirectTools &&
-                (task.capabilities.deviceReadTools || task.capabilities.deviceActionTools),
-            deviceSensitiveReadTools = globalDeviceSensitiveReadTools && task.capabilities.deviceReadTools,
-            deviceSensitiveActionTools = globalDeviceSensitiveActionTools && task.capabilities.deviceActionTools,
             subagentTools = globalSubagentTools,
         )
     }

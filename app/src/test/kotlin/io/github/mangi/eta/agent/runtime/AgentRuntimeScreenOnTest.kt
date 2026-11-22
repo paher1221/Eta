@@ -2,11 +2,7 @@ package io.github.mangi.eta.agent.runtime
 
 import android.app.Application
 import android.os.Looper
-import androidx.compose.runtime.MutableState
-import androidx.compose.ui.platform.ComposeView
 import io.github.mangi.eta.agent.model.AgentModelClient
-import io.github.mangi.eta.agent.overlay.AgentOverlayPhase
-import io.github.mangi.eta.agent.overlay.AgentOverlayState
 import io.github.mangi.eta.agent.overlay.AgentOverlayStatus
 import io.github.mangi.eta.config.Prefs
 import org.junit.Assert.assertEquals
@@ -26,42 +22,36 @@ import org.robolectric.shadows.ShadowPowerManager
 @Config(sdk = [36], application = Application::class)
 class AgentRuntimeScreenOnTest {
     @Test
-    fun pauseResumeAndCancellationUpdateWindowAndWakeLockState() {
+    fun pauseResumeAndCancellationUpdateWakeLockState() {
         ShadowPowerManager.reset()
         val serviceController = Robolectric.buildService(AgentRuntimeService::class.java).create()
         try {
             val service = serviceController.get()
             val session = service.registerRun("active-run").session
-            val capsule = ComposeView(service)
-            service.setField("capsuleView", capsule)
+            val guiCoordinator = service.field<GuiControlCoordinator>("guiControl")
 
             service.invoke("updateKeepScreenOn")
             assertTrue(AgentRuntimeService.keepScreenOn.value)
-            assertTrue(capsule.keepScreenOn)
             val wakeLock = ShadowPowerManager.getLatestWakeLock()
             assertTrue(wakeLock.isHeld)
 
-            service.invokeForRun("requestPause", session.runId)
+            guiCoordinator.pauseForUser(session.runId)
             shadowOf(Looper.getMainLooper()).idle()
             assertFalse(AgentRuntimeService.keepScreenOn.value)
-            assertFalse(capsule.keepScreenOn)
             assertFalse(wakeLock.isHeld)
 
-            service.invoke("requestResume")
+            guiCoordinator.resumeForUser()
             shadowOf(Looper.getMainLooper()).idle()
             assertTrue(AgentRuntimeService.keepScreenOn.value)
-            assertTrue(capsule.keepScreenOn)
             assertTrue(wakeLock.isHeld)
 
             session.controller.cancel()
             service.invoke("updateKeepScreenOn")
             assertFalse(AgentRuntimeService.keepScreenOn.value)
-            assertFalse(capsule.keepScreenOn)
             assertFalse(wakeLock.isHeld)
 
-            service.invoke("requestResume")
+            guiCoordinator.resumeForUser()
             assertFalse(AgentRuntimeService.keepScreenOn.value)
-            assertFalse(capsule.keepScreenOn)
             assertFalse(wakeLock.isHeld)
         } finally {
             serviceController.destroy()
@@ -82,10 +72,6 @@ class AgentRuntimeScreenOnTest {
 
             session.complete(AgentRuntimeWire.RunResult(session.runId, true, "完成"))
             service.invoke("updateKeepScreenOn")
-            assertFalse(AgentRuntimeService.keepScreenOn.value)
-            assertFalse(wakeLock.isHeld)
-
-            service.invoke("requestResume")
             assertFalse(AgentRuntimeService.keepScreenOn.value)
             assertFalse(wakeLock.isHeld)
         } finally {
@@ -117,10 +103,10 @@ class AgentRuntimeScreenOnTest {
         try {
             val service = serviceController.get()
             val background = service.registerRun("background-run", ownsGui = false).apply {
-                overlayState = overlayState.copy(status = AgentOverlayStatus.RunningTool("terminal_job"))
+                status = AgentOverlayStatus.RunningTool("terminal_job")
             }
             val guiCoordinator = service.field<GuiControlCoordinator>("guiControl")
-            service.assertExecutionStatus(background.overlayState.status, 1)
+            service.assertExecutionStatus(background.status, 1)
             assertNull(guiCoordinator.state.value.ownerRunId)
             service.invoke("updateKeepScreenOn")
             assertTrue(AgentRuntimeService.keepScreenOn.value)
@@ -128,7 +114,7 @@ class AgentRuntimeScreenOnTest {
             assertTrue(wakeLock.isHeld)
 
             val guiRun = service.registerRun("gui-run", ownsGui = false).apply {
-                overlayState = overlayState.copy(status = AgentOverlayStatus.GeneratingAnswer)
+                status = AgentOverlayStatus.GeneratingAnswer
             }
             val guiControl = guiCoordinator.openRun(guiRun.runId, guiRun.session.controller)
             guiControl.withAction { }
@@ -139,7 +125,7 @@ class AgentRuntimeScreenOnTest {
             assertTrue(wakeLock.isHeld)
 
             guiControl.release()
-            service.assertExecutionStatus(background.overlayState.status, 2)
+            service.assertExecutionStatus(background.status, 2)
             assertFalse(executionSuppressed())
             assertNull(guiCoordinator.state.value.ownerRunId)
             assertTrue(AgentRuntimeService.keepScreenOn.value)
@@ -197,13 +183,13 @@ class AgentRuntimeScreenOnTest {
         try {
             val service = serviceController.get()
             val run = service.registerRun("paused-run")
-            service.invokeForRun("requestPause", run.runId)
+            val guiCoordinator = service.field<GuiControlCoordinator>("guiControl")
+            guiCoordinator.pauseForUser(run.runId)
             run.session.controller.cancel()
             shadowOf(Looper.getMainLooper()).idle()
-            assertTrue(service.field<GuiControlCoordinator>("guiControl").state.value.userPaused)
-            assertEquals(AgentOverlayPhase.PAUSED, service.field<MutableState<AgentOverlayState>>("state").value.phase)
-            service.invoke("requestResume")
-            assertFalse(service.field<GuiControlCoordinator>("guiControl").state.value.userPaused)
+            assertTrue(guiCoordinator.state.value.userPaused)
+            guiCoordinator.resumeForUser()
+            assertFalse(guiCoordinator.state.value.userPaused)
         } finally {
             serviceController.destroy()
         }
@@ -215,19 +201,18 @@ class AgentRuntimeScreenOnTest {
         try {
             val service = serviceController.get()
             val guiRun = service.registerRun("paused-run")
-            service.invokeForRun("requestPause", guiRun.runId)
+            val guiCoordinator = service.field<GuiControlCoordinator>("guiControl")
+            guiCoordinator.pauseForUser(guiRun.runId)
             val background = service.registerRun("background-run", ownsGui = false).apply {
-                overlayState = overlayState.copy(status = AgentOverlayStatus.RunningTool("terminal_job"))
+                status = AgentOverlayStatus.RunningTool("terminal_job")
             }
             service.assertExecutionStatus(AgentOverlayStatus.Paused, 2)
 
             guiRun.session.controller.cancel()
             guiRun.session.complete(AgentRuntimeWire.RunResult(guiRun.runId, true, "完成"))
-            service.assertExecutionStatus(background.overlayState.status, 1)
-            val guiCoordinator = service.field<GuiControlCoordinator>("guiControl")
+            service.assertExecutionStatus(background.status, 1)
             assertTrue(guiCoordinator.state.value.userPaused)
             assertNull(guiCoordinator.state.value.ownerRunId)
-            assertEquals(AgentOverlayPhase.PAUSED, service.field<MutableState<AgentOverlayState>>("state").value.phase)
             assertTrue(AgentRuntimeService.keepScreenOn.value)
 
             background.session.complete(AgentRuntimeWire.RunResult(background.runId, true, "完成"))
@@ -274,18 +259,6 @@ class AgentRuntimeScreenOnTest {
     private fun <T> AgentRuntimeService.field(name: String): T = AgentRuntimeService::class.java.getDeclaredField(name).apply {
         isAccessible = true
     }.get(this) as T
-
-    private fun AgentRuntimeService.invokeForRun(name: String, runId: String) {
-        AgentRuntimeService::class.java.getDeclaredMethod(name, String::class.java).apply {
-            isAccessible = true
-        }.invoke(this, runId)
-    }
-
-    private fun AgentRuntimeService.setField(name: String, value: Any) {
-        AgentRuntimeService::class.java.getDeclaredField(name).apply {
-            isAccessible = true
-        }.set(this, value)
-    }
 
     private fun AgentRuntimeService.invoke(name: String) {
         AgentRuntimeService::class.java.getDeclaredMethod(name).apply {

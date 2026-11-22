@@ -111,7 +111,6 @@ class AgentPromptBuilderTest {
         assertTrue(messages.systemContents().any { it.contains("立即调用工具") })
         assertTrue(messages.systemContents().any { it.contains("不要先输出计划、解释或中间进度") })
         assertTrue(messages.systemContents().any { it.contains("不要为了展示思考而拆成多个回合") })
-        assertTrue(messages.systemContents().any { it.contains("需要操作应用时用 launch_app 或 open_uri 打开目标入口") })
         assertTrue(messages.systemContents().any { it.contains("主动调用当前已公开的只读工具获取证据") })
         assertTrue(messages.systemContents().any { it.contains("工具已向你公开表示对应能力已由用户开启") })
         assertTrue(messages.systemContents().any { it.contains("从多个相关来源按时间和代表性取样") })

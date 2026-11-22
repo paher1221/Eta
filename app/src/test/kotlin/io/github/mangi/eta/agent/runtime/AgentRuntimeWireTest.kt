@@ -532,9 +532,6 @@ class AgentRuntimeWireTest {
         )
 
         assertEquals(true, config.browserTools)
-        assertEquals(true, config.deviceDirectTools)
-        assertEquals(false, config.deviceSensitiveReadTools)
-        assertEquals(false, config.deviceSensitiveActionTools)
     }
 
     @Test
@@ -568,9 +565,6 @@ class AgentRuntimeWireTest {
                 systemPrompt = "你是手机 Agent",
                 terminalTools = true,
                 browserTools = true,
-                deviceDirectTools = true,
-                deviceSensitiveReadTools = true,
-                deviceSensitiveActionTools = true,
                 thinkingEnabled = true,
                 reasoningEffort = ReasoningEffort.HIGH,
                 reasoningCapabilities = ModelReasoningCapabilities(
@@ -645,35 +639,6 @@ class AgentRuntimeWireTest {
     }
 
     @Test
-    fun legacyRunRequestUsesSafeDeviceToolDefaults() {
-        val request = AgentRuntimeWire.RunRequest(
-            runId = "run-legacy-device-tools",
-            prompt = "查看设备状态",
-            config = AgentModelClient.ModelConfig(
-                baseUrl = "https://api.openai.com/v1",
-                apiKey = "test-key",
-                model = "gpt-test",
-                systemPrompt = "你是手机 Agent",
-                deviceDirectTools = false,
-                deviceSensitiveReadTools = true,
-                deviceSensitiveActionTools = true,
-            ),
-            images = emptyList(),
-        )
-        val legacyBundle = AgentRuntimeWire.toLegacyBundle(request).apply {
-            remove("device_direct_tools")
-            remove("device_sensitive_read_tools")
-            remove("device_sensitive_action_tools")
-        }
-
-        val config = AgentRuntimeWire.runRequestFromBundle(legacyBundle).config
-
-        assertEquals(true, config.deviceDirectTools)
-        assertEquals(false, config.deviceSensitiveReadTools)
-        assertEquals(false, config.deviceSensitiveActionTools)
-    }
-
-    @Test
     fun browserToolArgumentsSummaryOmitsSensitiveInputAndUrlParts() {
         val summary = AgentModelClient.summarizeBrowserToolArguments(
             """{"action":"type","url":"https://user:password@example.com/private?q=token#fragment","text":"secret input"}"""
@@ -702,15 +667,6 @@ class AgentRuntimeWireTest {
             assertTrue("$leaked leaked: $success", !success.contains(leaked))
             assertTrue("$leaked leaked: $failure", !failure.contains(leaked))
         }
-    }
-
-    @Test
-    fun openUriArgumentsSummaryOmitsPathCredentialsAndQuery() {
-        val summary = AgentModelClient.summarizeOpenUriArguments(
-            """{"uri":"https://user:password@example.com/private/access_token/value?q=secret#fragment"}"""
-        )
-
-        assertEquals("Open in external app · https · example.com", summary)
     }
 
     @Test

@@ -56,7 +56,6 @@ internal fun toolDisplayName(resources: Resources, name: String): String {
 internal fun toolDisplayNameResource(name: String): Int? = when (name) {
     "observe_screen" -> R.string.tool_observe_screen
     "release_gui" -> R.string.tool_release_gui
-    "present_to_user" -> R.string.tool_present_to_user
     "tap" -> R.string.tool_tap
     "tap_element" -> R.string.tool_tap_element
     "tap_area" -> R.string.tool_tap_area
@@ -75,11 +74,7 @@ internal fun toolDisplayNameResource(name: String): Int? = when (name) {
     "wait" -> R.string.tool_wait
     "wait_for_text" -> R.string.tool_wait_for_text
     "wait_for_package" -> R.string.tool_wait_for_package
-    "get_current_context" -> R.string.tool_current_context
     "open_system_panel" -> R.string.tool_open_system_panel
-    "search_apps" -> R.string.tool_search_apps
-    "launch_app" -> R.string.tool_launch_app
-    "open_uri" -> R.string.tool_open_uri
     "browser_use" -> R.string.tool_browser_use
     "web_search" -> R.string.tool_web_search
     "fetch_url" -> R.string.tool_fetch_url
@@ -88,7 +83,6 @@ internal fun toolDisplayNameResource(name: String): Int? = when (name) {
     "terminal_job" -> R.string.tool_terminal_job
     "terminal_daemon" -> R.string.tool_terminal_daemon
     "run_command" -> R.string.tool_run_command
-    "inspect_app" -> R.string.tool_inspect_app
     "edit_file" -> R.string.tool_edit_file
     "stat_file" -> R.string.tool_stat_file
     "glob_files" -> R.string.tool_glob_files
@@ -100,16 +94,9 @@ internal fun toolDisplayNameResource(name: String): Int? = when (name) {
     "memory_write" -> R.string.tool_memory_write
     "subagent" -> R.string.tool_subagent
     "subagent_profile" -> R.string.tool_subagent_profile
-    "set_alarm" -> R.string.tool_set_alarm
-    "set_timer" -> R.string.tool_set_timer
-    "device_status" -> R.string.tool_device_status
-    "network_info" -> R.string.tool_network_info
-    "media_control" -> R.string.tool_media_control
-    "set_volume" -> R.string.tool_set_volume
     "top_memory_apps" -> R.string.tool_top_memory_apps
     "top_storage_apps" -> R.string.tool_top_storage_apps
     "read_sms_code" -> R.string.tool_read_sms_code
-    "recent_notifications" -> R.string.tool_recent_notifications
     "wifi_credentials" -> R.string.tool_wifi_credentials
     "get_setting" -> R.string.tool_get_setting
     "set_setting" -> R.string.tool_set_setting

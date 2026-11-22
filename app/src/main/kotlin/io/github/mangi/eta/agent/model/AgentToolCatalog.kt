@@ -9,9 +9,6 @@ internal object AgentToolCatalog {
     fun build(
         terminalTools: Boolean,
         browserTools: Boolean,
-        deviceDirectTools: Boolean = true,
-        deviceSensitiveReadTools: Boolean = false,
-        deviceSensitiveActionTools: Boolean = false,
         skillGitHubDiscovery: Boolean = false,
         skillGitHubInstall: Boolean = false,
         memoryTools: Boolean = false,
@@ -21,14 +18,7 @@ internal object AgentToolCatalog {
         disabledTools: Set<String> = emptySet(),
     ): JSONArray =
         capabilities.project(JSONArray().also { tools ->
-            AgentContextAppToolCatalog.appendTo(tools)
             AgentTextSystemToolCatalog.appendTo(tools)
-            AgentDeviceToolCatalog.appendTo(
-                tools,
-                directTools = deviceDirectTools,
-                sensitiveReadTools = deviceSensitiveReadTools,
-                sensitiveActionTools = deviceSensitiveActionTools,
-            )
             if (browserTools) {
                 AgentWebToolCatalog.appendTo(tools, includeSearch = localWebSearch)
                 AgentBrowserToolCatalog.appendTo(tools)

@@ -33,8 +33,6 @@ class ToolCatalogUiTest {
         val tools = AgentToolCatalog.build(
             terminalTools = true,
             browserTools = true,
-            deviceSensitiveReadTools = true,
-            deviceSensitiveActionTools = true,
             skillGitHubDiscovery = true,
             skillGitHubInstall = true,
             memoryTools = true,
@@ -79,16 +77,6 @@ class ToolCatalogUiTest {
     }
 
     @Test
-    fun personalQueriesAndNativeOperationsHaveSeparateGroups() {
-        val group = buildToolsState(RuntimeEnvironment.getApplication()).groups.first { it.id == "personal_data" }
-        assertTrue(group.tools.any { it.id == "recent_notifications" })
-        assertTrue(group.tools.none { it.id == "personal_context" || it.id == "create_note" })
-        val operations = buildToolsState(RuntimeEnvironment.getApplication()).groups.first { it.id == "device_direct" }
-        assertTrue(operations.tools.any { it.id == "set_volume" })
-        requireNotNull(toolCardRequirement("recent_notifications"))
-    }
-
-    @Test
     fun everyDisplayedCardHasExplicitMetadataAndKeepsItsOriginalOrder() {
         val groups = buildToolsState(RuntimeEnvironment.getApplication()).groups
         val allCards = groups.flatMap { it.tools }
@@ -102,31 +90,27 @@ class ToolCatalogUiTest {
     fun disabledToolsAreOmittedFromModelCatalogAndPersistInPrefs() {
         val context = RuntimeEnvironment.getApplication()
         Prefs.initLocal(context)
-        Prefs.setToolsEnabled(listOf("media_control", "set_volume"), false)
-        assertFalse(Prefs.isToolEnabled("media_control"))
-        assertFalse(Prefs.isToolEnabled("set_volume"))
-        assertTrue(Prefs.isToolEnabled("set_alarm"))
+        Prefs.setToolsEnabled(listOf("web_search", "fetch_url"), false)
+        assertFalse(Prefs.isToolEnabled("web_search"))
+        assertFalse(Prefs.isToolEnabled("fetch_url"))
+        assertTrue(Prefs.isToolEnabled("browser_use"))
 
         val tools = AgentToolCatalog.build(
             terminalTools = true,
             browserTools = true,
-            deviceDirectTools = true,
-            deviceSensitiveReadTools = true,
-            deviceSensitiveActionTools = true,
             capabilities = AgentToolCapabilities(rootAvailable = true),
             disabledTools = Prefs.disabledTools(),
         )
         val names = (0 until tools.length()).map {
             tools.getJSONObject(it).getJSONObject("function").getString("name")
         }.toSet()
-        assertFalse("media_control" in names)
-        assertFalse("set_volume" in names)
-        assertTrue("set_alarm" in names)
-        assertTrue("get_current_context" in names)
+        assertFalse("web_search" in names)
+        assertFalse("fetch_url" in names)
+        assertTrue("browser_use" in names)
 
-        Prefs.setToolsEnabled(listOf("media_control", "set_volume"), true)
-        assertTrue(Prefs.isToolEnabled("media_control"))
-        assertTrue(Prefs.isToolEnabled("set_volume"))
+        Prefs.setToolsEnabled(listOf("web_search", "fetch_url"), true)
+        assertTrue(Prefs.isToolEnabled("web_search"))
+        assertTrue(Prefs.isToolEnabled("fetch_url"))
     }
 
     @Test

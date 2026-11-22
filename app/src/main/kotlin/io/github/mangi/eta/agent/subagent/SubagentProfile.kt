@@ -51,15 +51,10 @@ internal data class SubagentProfile(
         val customAllowlist = explicitTools
         if (customAllowlist != null) {
             if (toolName in customAllowlist) return true
-            if ("personal_data" in customAllowlist && toolName in PERSONAL_READ_TOOLS) {
-                return true
-            }
-            if ("*" in customAllowlist) {
-                return toolName !in DEFAULT_DEVICE_WRITE_TOOLS
-            }
+            if ("*" in customAllowlist) return true
             return false
         }
-        if (toolName in READ_ONLY_TOOLS || toolName in PERSONAL_READ_TOOLS) {
+        if (toolName in READ_ONLY_TOOLS) {
             return true
         }
         if (!allowWriteFilesAndTerminal) return false
@@ -83,7 +78,6 @@ internal data class SubagentProfile(
             // 旧版 GUI 工具已移除，这里保留名字防止历史配置继续放行。
             "observe_screen",
             "release_gui",
-            "present_to_user",
             "tap",
             "tap_area",
             "tap_element",
@@ -103,8 +97,6 @@ internal data class SubagentProfile(
             "wait",
             "wait_for_text",
             "wait_for_package",
-            "launch_app",
-            "open_uri",
             "browser_use",
             "memory_write",
             "character_memory_write",
@@ -121,52 +113,12 @@ internal data class SubagentProfile(
             "read_image",
             "web_search",
             "fetch_url",
-            "get_current_context",
-            "search_apps",
-            "inspect_app",
-            "device_status",
-            "network_info",
-            "get_current_location",
-            "get_device_environment",
-            "recent_notifications",
-            "search_notification_history",
-            "recent_app_activity",
-            "app_usage_summary",
             "get_clipboard",
-            "get_flashlight",
-            "get_display_state",
-            "get_sound_state",
             "memory_get",
             "character_memory_get",
             "skills_list",
             "skills_read",
             "skills_read_resource",
-        )
-
-        /**
-         * 保留的设备个人数据敏感读工具。`personal_data` 白名单与默认允许集均以此为口径。
-         */
-        private val PERSONAL_READ_TOOLS = setOf(
-            "recent_notifications",
-            "search_notification_history",
-            "recent_app_activity",
-            "app_usage_summary",
-            "get_current_location",
-            "get_device_environment",
-        )
-
-        /**
-         * 设备状态修改与动作类写工具。未显式点名授权时，通配 `*` 默认排除这些工具，
-         * 避免多个并发 Subagent 互相修改系统设置、音量或应用状态；仍允许在自定义 Profile
-         * 的 `tools` 列表里显式点名放行（`FORBIDDEN_TOOLS` 除外）。
-         */
-        val DEFAULT_DEVICE_WRITE_TOOLS: Set<String> = setOf(
-            "set_alarm",
-            "set_timer",
-            "set_volume",
-            "media_control",
-            "set_flashlight",
-            "set_do_not_disturb",
         )
 
         private val CODER_EXTRA_TOOLS =
@@ -176,7 +128,7 @@ internal data class SubagentProfile(
             name = TYPE_EXPLORE,
             summary = "只读探索与多源信息检索",
             whenToUse = "Fast read-only agent specialized for exploring files, personal device data (calendar, notes, messages, notifications, bills, media, system memories), logs, and web pages. Specify desired thoroughness in the prompt: \"quick\", \"medium\", or \"thorough\".",
-            toolHighlights = listOf("read_file", "glob_files", "grep_files", "web_search", "fetch_url", "personal_data"),
+            toolHighlights = listOf("read_file", "glob_files", "grep_files", "web_search", "fetch_url"),
             roleInstruction = "你是只读探索 Subagent（explore）。你的职责是快速、准确地检索文件、设备个人数据、系统状态或网页资料，" +
                 "严禁尝试修改任何文件或设备状态。在最终回复中直接给出结构化证据、关键路径/时间点与结论摘要。",
             allowWriteFilesAndTerminal = false,
@@ -238,7 +190,6 @@ internal data class SubagentProfile(
                 val narrowedTools = cleanTools.filter { tool ->
                     when (tool) {
                         "*" -> false
-                        "personal_data" -> PERSONAL_READ_TOOLS.any(matched::isToolAllowed)
                         else -> matched.isToolAllowed(tool)
                     }
                 }
@@ -267,7 +218,7 @@ internal data class SubagentProfile(
                 toolHighlights = if (cleanTools.isNotEmpty()) {
                     cleanTools.take(8)
                 } else {
-                    listOf("read_file", "glob_files", "grep_files", "web_search", "personal_data", "terminal")
+                    listOf("read_file", "glob_files", "grep_files", "web_search", "terminal")
                 },
                 roleInstruction = instruction,
                 allowWriteFilesAndTerminal = true,

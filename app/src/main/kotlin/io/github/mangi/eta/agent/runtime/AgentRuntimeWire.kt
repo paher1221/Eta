@@ -128,9 +128,6 @@ internal object AgentRuntimeWire {
     private const val KEY_HOSTED_WEB_SEARCH_ENABLED = "hosted_web_search_enabled"
     private const val KEY_TERMINAL_TOOLS = "terminal_tools"
     private const val KEY_BROWSER_TOOLS = "browser_tools"
-    private const val KEY_DEVICE_DIRECT_TOOLS = "device_direct_tools"
-    private const val KEY_DEVICE_SENSITIVE_READ_TOOLS = "device_sensitive_read_tools"
-    private const val KEY_DEVICE_SENSITIVE_ACTION_TOOLS = "device_sensitive_action_tools"
     private const val KEY_SUBAGENT_TOOLS = "subagent_tools"
     private const val KEY_THINKING_ENABLED = "thinking_enabled"
     private const val KEY_REASONING_EFFORT = "reasoning_effort"
@@ -356,9 +353,6 @@ internal object AgentRuntimeWire {
         putBoolean(KEY_SUPPORTS_SEARCH_SUGGESTIONS, request.config.supportsSearchSuggestions)
         putBoolean(KEY_TERMINAL_TOOLS, request.config.terminalTools)
         putBoolean(KEY_BROWSER_TOOLS, request.config.browserTools)
-        putBoolean(KEY_DEVICE_DIRECT_TOOLS, request.config.deviceDirectTools)
-        putBoolean(KEY_DEVICE_SENSITIVE_READ_TOOLS, request.config.deviceSensitiveReadTools)
-        putBoolean(KEY_DEVICE_SENSITIVE_ACTION_TOOLS, request.config.deviceSensitiveActionTools)
         putBoolean(KEY_SUBAGENT_TOOLS, request.config.subagentTools)
         putBoolean(KEY_THINKING_ENABLED, request.config.effectiveReasoningEffort.enablesReasoning)
         putString(KEY_REASONING_EFFORT, request.config.effectiveReasoningEffort.wireValue)
@@ -508,15 +502,6 @@ internal object AgentRuntimeWire {
                 } else {
                     true
                 },
-                deviceDirectTools = if (bundle.containsKey(KEY_DEVICE_DIRECT_TOOLS)) {
-                    bundle.getBoolean(KEY_DEVICE_DIRECT_TOOLS)
-                } else {
-                    true
-                },
-                deviceSensitiveReadTools =
-                    bundle.getBoolean(KEY_DEVICE_SENSITIVE_READ_TOOLS, false),
-                deviceSensitiveActionTools =
-                    bundle.getBoolean(KEY_DEVICE_SENSITIVE_ACTION_TOOLS, false),
                 subagentTools = bundle.getBoolean(
                     KEY_SUBAGENT_TOOLS,
                     Prefs.Keys.BOOLEAN_DEFAULTS.getValue(Prefs.Keys.AGENT_SUBAGENT_ENABLED),

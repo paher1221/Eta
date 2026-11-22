@@ -44,10 +44,6 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.mangi.eta.EtaApp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.browser.BrowserSessionRegistry
-import io.github.mangi.eta.agent.overlay.AgentOverlayPhase
-import io.github.mangi.eta.agent.overlay.AgentOverlayState
-import io.github.mangi.eta.agent.overlay.AgentOverlayStatus
-import io.github.mangi.eta.agent.overlay.AgentResultCard
 import io.github.mangi.eta.data.model.AppearanceSettings
 import io.github.mangi.eta.data.model.AppearanceUiStyle
 import io.github.mangi.eta.ui.AppearanceSettingsScreen
@@ -75,7 +71,6 @@ import io.github.mangi.eta.ui.screens.characters.CharacterPersonaScreen
 import io.github.mangi.eta.ui.screens.mcp.McpServersScreen
 import io.github.mangi.eta.ui.screens.memory.AgentMemoryScreen
 import io.github.mangi.eta.ui.screens.permissions.PermissionHealthScreen
-import io.github.mangi.eta.ui.screens.settings.AssistantOverlaySettingsScreen
 import io.github.mangi.eta.ui.screens.settings.ConversationTitleSettingsScreen
 import io.github.mangi.eta.ui.screens.skills.AgentSkillsScreen
 import io.github.mangi.eta.ui.screens.subagent.SubagentSettingsScreen
@@ -301,24 +296,14 @@ class UiStyleThemeAndScreensTest {
                             22 -> SharedFoldersScreen(context = activity, onBack = { backPressedCount++ })
                             23 -> WorkspaceScreen(onBack = { backPressedCount++ })
                             24 -> AgentBrowserScreen(session = browserSession, onBack = { backPressedCount++ })
-                            25 -> AgentResultCard(
-                                state = AgentOverlayState(
-                                    phase = AgentOverlayPhase.FINISHED,
-                                    status = AgentOverlayStatus.ResultReady,
-                                    detailText = "Task completed",
-                                ),
-                                onClose = {},
-                                onOpenEta = {},
-                            )
-                            26 -> AgentAppRoot()
-                            27 -> ConversationTitleSettingsScreen(onBack = { backPressedCount++ })
-                            28 -> AssistantOverlaySettingsScreen(onBack = { backPressedCount++ })
+                            25 -> AgentAppRoot()
+                            26 -> ConversationTitleSettingsScreen(onBack = { backPressedCount++ })
                         }
                     }
                 }
             }
 
-            for (index in 0..28) {
+            for (index in 0..26) {
                 screenIndex = index
                 for (style in listOf(AppearanceUiStyle.COUI, AppearanceUiStyle.MIUIX)) {
                     uiStyle = style

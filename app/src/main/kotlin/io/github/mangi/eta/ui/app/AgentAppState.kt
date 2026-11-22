@@ -740,9 +740,6 @@ internal class AgentAppState(
         }
     }
 
-    suspend fun openAssistantConversation(conversationKey: String): Boolean =
-        openArchivedConversation(AgentRuntimeWire.ETA_VOICE_HANDOFF_SOURCE, conversationKey)
-
     /** 打开外部入口按 [source] 与 [conversationKey] 归档的会话；先导入尚未入库的归档结果。 */
     suspend fun openArchivedConversation(source: String, conversationKey: String): Boolean {
         if (source.isBlank() || conversationKey.isBlank()) return false
@@ -936,7 +933,7 @@ internal class AgentAppState(
         if (selectedConversationId != null) persistConversations()
     }
 
-    /** 聊天内切换同时改当前会话绑定与默认模型；默认模型供新会话和系统助手入口使用。 */
+    /** 聊天内切换同时改当前会话绑定与默认模型；默认模型供新会话使用。 */
     fun selectModel(modelId: String) {
         if (
             !homeState.isConversationLoaded ||
@@ -2027,11 +2024,6 @@ internal class AgentAppState(
             val config = RuntimeConfigRepository.runtimeConfigFor(runModelId)?.copy(
                 terminalTools = agentBooleanForUi(Prefs.Keys.AGENT_TERMINAL_TOOLS),
                 browserTools = agentBooleanForUi(Prefs.Keys.AGENT_BROWSER_TOOLS),
-                deviceDirectTools = agentBooleanForUi(Prefs.Keys.AGENT_DEVICE_DIRECT_TOOLS),
-                deviceSensitiveReadTools =
-                    agentBooleanForUi(Prefs.Keys.AGENT_DEVICE_SENSITIVE_READ_TOOLS),
-                deviceSensitiveActionTools =
-                    agentBooleanForUi(Prefs.Keys.AGENT_DEVICE_SENSITIVE_ACTION_TOOLS),
                 subagentTools = agentBooleanForUi(Prefs.Keys.AGENT_SUBAGENT_ENABLED),
                 thinkingEnabled = runReasoningEffort.enablesReasoning,
                 reasoningEffort = runReasoningEffort,

@@ -391,7 +391,7 @@ class AgentRunMessageProjectorTest {
             AgentEvent.ToolStarted(
                 round = 1,
                 toolCallId = "tool_call_0",
-                name = "search_apps",
+                name = "search_files",
                 argsPreview = """{"query":"相机"}""",
             ),
             messages
@@ -401,7 +401,7 @@ class AgentRunMessageProjectorTest {
             AgentEvent.ToolFinished(
                 round = 1,
                 toolCallId = "tool_call_0",
-                name = "search_apps",
+                name = "search_files",
                 resultSummary = "ok=true",
                 imageCount = 0,
                 imageBytes = 0,
@@ -421,7 +421,7 @@ class AgentRunMessageProjectorTest {
 
         val tools = messages.filterIsInstance<ToolActivityMessageUi>()
         assertEquals(2, tools.size)
-        assertEquals("search_apps", tools[0].toolName)
+        assertEquals("search_files", tools[0].toolName)
         assertEquals(ToolActivityStatusUi.Success, tools[0].status)
         assertEquals("observe_screen", tools[1].toolName)
         assertEquals(ToolActivityStatusUi.Running, tools[1].status)
@@ -441,7 +441,7 @@ class AgentRunMessageProjectorTest {
             AgentEvent.ToolStarted(
                 round = 1,
                 toolCallId = "call_1",
-                name = "search_apps",
+                name = "search_files",
                 argsPreview = "{}",
             ),
             messages

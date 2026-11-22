@@ -52,22 +52,21 @@ class AgentToolRequirementsTest {
     }
 
     @Test
-    fun ordinaryAuthorizationGatesTheCorrespondingTools() {
-        val restricted = AgentToolCapabilities(
-            notificationsAllowed = false, usageAllowed = false, locationAllowed = false,
+    fun removedDeviceToolsAreNotPublished() {
+        val names = catalog().names()
+        val removed = setOf(
+            "present_to_user", "get_current_context", "search_apps", "launch_app", "open_uri",
+            "set_alarm", "set_timer", "inspect_app", "device_status", "network_info",
+            "media_control", "set_volume", "get_flashlight", "set_flashlight",
+            "get_display_state", "get_sound_state", "set_do_not_disturb",
+            "recent_notifications", "search_notification_history", "recent_app_activity",
+            "app_usage_summary", "get_current_location", "get_device_environment",
         )
-        val names = restricted.project(catalog()).names()
-        assertTrue(setOf("launch_app", "open_uri", "terminal", "browser_use").all { it in names })
-        assertTrue(setOf("recent_notifications", "app_usage_summary", "get_current_location").none { it in names })
-        assertEquals("NOTIFICATION_ACCESS_REQUIRED", restricted.unavailableCode("recent_notifications"))
-        assertEquals("APP_USAGE_ACCESS_REQUIRED", restricted.unavailableCode("app_usage_summary"))
-        assertEquals("LOCATION_PERMISSION_REQUIRED", restricted.unavailableCode("get_current_location"))
-        assertEquals(null, restricted.copy(notificationsAllowed = true).unavailableCode("recent_notifications"))
+        assertTrue(removed.none { it in names })
     }
 
     private fun catalog() = AgentToolCatalog.build(
-        terminalTools = true, browserTools = true, deviceDirectTools = true,
-        deviceSensitiveReadTools = true, deviceSensitiveActionTools = true,
+        terminalTools = true, browserTools = true,
         skillGitHubDiscovery = true, skillGitHubInstall = true, memoryTools = true,
         capabilities = AgentToolCapabilities(),
     )

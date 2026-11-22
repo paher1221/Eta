@@ -90,7 +90,7 @@ class AgentRoleplayRuntimeTest {
             ProviderResponse(JSONObject().put("role", "assistant").put("content", "")
                 .put("finish_reason", "tool_calls")
                 .put("tool_calls", JSONArray().put(JSONObject().put("id", "danger")
-                    .put("type", "function").put("function", JSONObject().put("name", "get_current_context")
+                    .put("type", "function").put("function", JSONObject().put("name", "set_clipboard")
                         .put("arguments", "{}")))))
         }
         val failure = assertThrows(AgentModelExecutionException::class.java) {

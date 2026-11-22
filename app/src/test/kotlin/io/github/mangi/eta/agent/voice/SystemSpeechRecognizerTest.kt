@@ -59,7 +59,7 @@ class SystemSpeechRecognizerTest {
             SystemSpeechRecognizer.selectExternalService(
                 listOf(
                     service("third.party", "Hidden", exported = false),
-                    service("io.github.mangi.eta", "EtaRecognitionService", permission = "android.permission.BIND_SPEECH_RECOGNITION_SERVICE"),
+                    service("io.github.mangi.eta", "SelfRecognizer", permission = "android.permission.BIND_SPEECH_RECOGNITION_SERVICE"),
                 ),
                 "io.github.mangi.eta",
                 configured,

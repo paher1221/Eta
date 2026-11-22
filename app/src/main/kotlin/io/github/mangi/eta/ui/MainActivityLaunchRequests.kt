@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.core.content.IntentCompat
-import io.github.mangi.eta.agent.voice.EtaAssistantOverlayService
 import io.github.mangi.eta.ui.app.ArchivedConversationRequest
 import io.github.mangi.eta.ui.voice.ACTION_SPEECH_SETTINGS
 
@@ -26,7 +25,6 @@ data class IncomingShareRequest(
 )
 
 internal data class MainActivityLaunchRequests(
-    val assistantConversationKey: String? = null,
     val conversationId: String? = null,
     val archivedConversation: ArchivedConversationRequest? = null,
     val scheduledTaskId: String? = null,
@@ -52,9 +50,6 @@ internal data class MainActivityLaunchRequests(
                 } else null,
             )
         }
-        EtaAssistantOverlayService.ACTION_OPEN_CONVERSATION -> copy(
-            assistantConversationKey = intent.nonBlankExtra(EtaAssistantOverlayService.EXTRA_CONVERSATION_KEY),
-        )
         Intent.ACTION_SEND,
         Intent.ACTION_SEND_MULTIPLE,
         -> intent.toIncomingShareRequest()?.let { request ->
@@ -65,7 +60,6 @@ internal data class MainActivityLaunchRequests(
 
     fun saveTo(outState: Bundle) {
         outState.putBundle(STATE_KEY, Bundle().apply {
-            putString("assistant_conversation_key", assistantConversationKey)
             putString("conversation_id", conversationId)
             putString("archive_source", archivedConversation?.source)
             putString("archive_conversation_key", archivedConversation?.conversationKey)
@@ -96,7 +90,6 @@ internal data class MainActivityLaunchRequests(
             val shareText = saved.getString("share_text")?.takeIf(String::isNotBlank)
             val shareMimeType = saved.getString("share_mime_type")?.takeIf(String::isNotBlank)
             return MainActivityLaunchRequests(
-                assistantConversationKey = saved.getString("assistant_conversation_key"),
                 conversationId = saved.getString("conversation_id"),
                 archivedConversation = if (source != null && key != null) {
                     ArchivedConversationRequest(source, key)

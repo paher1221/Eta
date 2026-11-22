@@ -10,13 +10,6 @@ internal fun buildToolsState(context: Context): AgentToolsUiState =
     AgentToolsUiState(
         groups = listOf(
             ToolGroupUi(
-                id = "screen",
-                title = context.getString(R.string.state_screens_and_controls_3f095b),
-                tools = listOf(
-                    ToolItemUi("present_to_user", context.getString(R.string.tool_present_to_user), context.getString(R.string.tool_present_to_user_description)),
-                ),
-            ),
-            ToolGroupUi(
                 id = "text",
                 title = context.getString(R.string.state_text_and_clipboard_3a7340),
                 tools = listOf(
@@ -31,41 +24,6 @@ internal fun buildToolsState(context: Context): AgentToolsUiState =
                     ToolItemUi("web_search", context.getString(R.string.tool_web_search), context.getString(R.string.tool_web_search_description)),
                     ToolItemUi("fetch_url", context.getString(R.string.tool_fetch_url), context.getString(R.string.tool_fetch_url_description)),
                     ToolItemUi("browser_use", context.getString(R.string.tool_ui_agent_browser_a66bd5), context.getString(R.string.tool_ui_open_web_pages_off_screen_and_keep_a_takeover_br_72972e)),
-                ),
-            ),
-            ToolGroupUi(
-                id = "app",
-                title = context.getString(R.string.state_applications_and_systems_9624e6),
-                tools = listOf(
-                    ToolItemUi("search_apps", context.getString(R.string.tool_ui_search_apps_897fdf), context.getString(R.string.tool_ui_query_installed_applications_by_name_or_package__32b004)),
-                    ToolItemUi("get_current_context", context.getString(R.string.tool_ui_time_and_location_693893), context.getString(R.string.tool_ui_read_system_time_and_recent_location_b9f4ae)),
-                    ToolItemUi("launch_app", context.getString(R.string.tool_ui_open_app_7c65e7), context.getString(R.string.tool_ui_start_the_specified_package_name_or_application__beabff)),
-                    ToolItemUi("open_uri", context.getString(R.string.tool_ui_open_with_app_32c24e), context.getString(R.string.tool_ui_explicitly_hand_over_links_or_deep_links_to_exte_35ff26)),
-                ),
-            ),
-            ToolGroupUi(
-                id = "device_direct",
-                title = context.getString(R.string.state_direct_access_to_equipment_eda92c),
-                tools = listOf(
-                    ToolItemUi("set_alarm", context.getString(R.string.tool_ui_set_alarm_25ca3c), context.getString(R.string.tool_ui_create_a_system_alarm_directly_and_open_the_cloc_9aa214)),
-                    ToolItemUi("set_timer", context.getString(R.string.tool_ui_set_timer_aee60c), context.getString(R.string.tool_ui_directly_create_system_timers_up_to_24_hours_87c476)),
-                    ToolItemUi("inspect_app", context.getString(R.string.tool_inspect_app), context.getString(R.string.tool_inspect_app_description)),
-                    ToolItemUi("device_status", context.getString(R.string.tool_ui_device_status_567a4c), context.getString(R.string.tool_ui_read_power_memory_storage_and_system_version_c501d5)),
-                    ToolItemUi("network_info", context.getString(R.string.tool_ui_network_status_6bd556), context.getString(R.string.tool_ui_read_networking_method_and_current_wi_fi_status_68016a)),
-                    ToolItemUi("media_control", context.getString(R.string.tool_ui_media_control_585edc), context.getString(R.string.tool_ui_play_pause_and_switch_songs_without_operating_th_311cb8)),
-                    ToolItemUi("set_volume", context.getString(R.string.tool_ui_set_volume_85a691), context.getString(R.string.tool_ui_set_by_media_alarm_clock_ringtone_and_other_chan_3fcc3e)),
-                ),
-            ),
-            ToolGroupUi(
-                id = "personal_data",
-                title = context.getString(R.string.state_direct_access_to_personal_data_387d7b),
-                tools = listOf(
-                    ToolItemUi("recent_notifications", context.getString(R.string.tool_ui_read_notification_7fdc09), context.getString(R.string.tool_ui_read_the_current_notification_title_and_text_0faee7)),
-                    ToolItemUi("search_notification_history", context.getString(R.string.tool_ui_notification_history_95d015), context.getString(R.string.tool_ui_retrieve_the_last_7_days_of_notifications_saved__643e43)),
-                    ToolItemUi("recent_app_activity", context.getString(R.string.tool_ui_recently_applied_08f74c), context.getString(R.string.tool_ui_view_recently_opened_apps_and_times_bf9d50)),
-                    ToolItemUi("app_usage_summary", context.getString(R.string.tool_ui_app_usage_statistics_ee20d3), context.getString(R.string.tool_ui_summarize_recent_app_usage_by_foreground_duratio_b346c8)),
-                    ToolItemUi("get_current_location", context.getString(R.string.tool_ui_current_location_b458ea), context.getString(R.string.tool_ui_read_the_closest_location_the_system_already_has_255a6c)),
-                    ToolItemUi("get_device_environment", context.getString(R.string.tool_ui_equipment_environment_1026ec), context.getString(R.string.tool_ui_read_lock_screen_do_not_disturb_audio_output_and_9260b8)),
                 ),
             ),
             ToolGroupUi(

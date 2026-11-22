@@ -351,7 +351,7 @@ class AgentContextCompactionTest {
                         ),
                     ),
                 )
-                response("已归档此前历史与工具结果。\n关键实体与线索：get_current_context")
+                response("已归档此前历史与工具结果。\n关键实体与线索：memory_get")
             } else if (round++ == 0) {
                 emit(ProviderEvent.Usage(AgentTokenUsage(inputTokens = 45_000, cachedTokens = 40_000)))
                 ProviderResponse(
@@ -368,7 +368,7 @@ class AgentContextCompactionTest {
                                     .put(
                                         "function",
                                         JSONObject()
-                                            .put("name", "get_current_context")
+                                            .put("name", "memory_get")
                                             .put("arguments", "{}"),
                                     ),
                             ),
@@ -450,7 +450,7 @@ class AgentContextCompactionTest {
                 attempts++
                 if (attempts == 1) {
                     assertTrue(request.tools.length() > 0)
-                    emit(ProviderEvent.BlockStart(AssistantBlockKind.TOOL_CALL, 0, "c1", "get_current_context"))
+                    emit(ProviderEvent.BlockStart(AssistantBlockKind.TOOL_CALL, 0, "c1", "memory_get"))
                     response("")
                 } else {
                     assertEquals(0, request.tools.length())

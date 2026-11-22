@@ -2,12 +2,7 @@ package io.github.mangi.eta.agent.tool
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.view.Display
 import android.content.Context
-import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
-import android.net.Uri
 import io.github.mangi.eta.agent.browser.AgentBrowserSession
 import io.github.mangi.eta.agent.model.AgentModelClient
 import io.github.mangi.eta.agent.model.AgentHttpClient
@@ -66,15 +61,6 @@ internal class AgentLocalTools(
     private val terminalToolsEnabled: () -> Boolean = {
         Prefs.isEnabled(Prefs.Keys.AGENT_TERMINAL_TOOLS)
     },
-    private val deviceDirectToolsEnabled: () -> Boolean = {
-        Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_DIRECT_TOOLS)
-    },
-    private val deviceSensitiveReadToolsEnabled: () -> Boolean = {
-        Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_READ_TOOLS)
-    },
-    private val deviceSensitiveActionToolsEnabled: () -> Boolean = {
-        Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_ACTION_TOOLS)
-    },
     private val memoryToolsEnabled: () -> Boolean = {
         runBlocking { AgentMemoryRepository.isEnabled() }
     },
@@ -101,11 +87,6 @@ internal class AgentLocalTools(
 
     private val closed = AtomicBoolean(false)
     private val browserSessionRef = lazy { browserSession ?: AgentBrowserSession() }
-    private val structuredDeviceTools = AgentStructuredDeviceTools(
-        context = context,
-        logger = logger,
-        foregroundAction = ::executeForegroundIntent,
-    )
     private val imageTools = AgentImageTools(context, imageBudgetProvider)
     private val webTools = AgentWebTools(
         transport = WebHttpTransport(AgentHttpClient.client),
@@ -170,14 +151,8 @@ internal class AgentLocalTools(
                     sensitive = AgentSensitiveToolPolicy.isSensitive(toolCall.name),
                 )
             }
-            deviceToolPermissionError(toolCall.name)?.let { return@runCatching it }
             memoryToolPermissionError(toolCall.name)?.let { return@runCatching it }
-            val preparation = if (AgentToolRequirements.hasForegroundIntentFallback(toolCall.name)) {
-                ToolExecutionDecision.Allow
-            } else {
-                beforeToolExecution(toolCall.name)
-            }
-            when (val decision = preparation) {
+            when (val decision = beforeToolExecution(toolCall.name)) {
                 ToolExecutionDecision.Allow -> Unit
                 is ToolExecutionDecision.Reject -> {
                     return@runCatching textResult(
@@ -189,17 +164,6 @@ internal class AgentLocalTools(
                 }
             }
             when (toolCall.name) {
-                "get_current_context" -> textResult(DeviceContextTool.current(context))
-                "search_apps" -> textResult(searchApps(args))
-                "launch_app" -> {
-                    textResult(launchApp(args))
-                }
-                "present_to_user" -> {
-                    textResult(presentToUser(args))
-                }
-                "open_uri" -> {
-                    textResult(openUri(args))
-                }
                 "browser_use" -> browserUse(args, toolCall.id)
                 "web_search", "fetch_url" -> {
                     if (!browserToolsEnabled()) textResult(errorResult("BROWSER_TOOLS_DISABLED", "请先启用网页搜索、读取与浏览器工具"))
@@ -207,9 +171,6 @@ internal class AgentLocalTools(
                 }
                 "set_clipboard" -> textResult(setClipboard(args))
                 "get_clipboard" -> textResult(getClipboard())
-                in DEVICE_TOOL_NAMES ->
-                    structuredDeviceTools.execute(toolCall.name, args)
-                        ?: textResult(errorResult("UNKNOWN_TOOL", "未知设备工具"))
                 "read_image" -> fileVisionTool { imageTools.readImage(args) }
                 in AgentTerminalToolCatalog.names -> textResult(terminalTool {
                     terminalController.executeTool(toolCall.name, args)
@@ -248,42 +209,6 @@ internal class AgentLocalTools(
                 result.copy(sensitive = true)
             }
         }
-
-    private fun executeForegroundIntent(toolName: String, action: () -> JSONObject): JSONObject {
-        fun execute(): JSONObject {
-            if (closed.get()) throw AgentRunCancelledException()
-            if (!isToolEnabled(toolName)) {
-                return JSONObject(errorResult("TOOL_DISABLED", "工具 $toolName 已在工具列表中关闭，本次未执行"))
-            }
-            deviceToolPermissionError(toolName)?.let { return JSONObject(it.content) }
-            return when (val decision = beforeToolExecution(toolName)) {
-                ToolExecutionDecision.Allow -> {
-                    action()
-                }
-                is ToolExecutionDecision.Reject -> JSONObject(errorResult(decision.code, decision.message))
-            }
-        }
-        return guiControl?.withAction { execute() } ?: execute()
-    }
-
-    private fun deviceToolPermissionError(
-        toolName: String,
-    ): AgentModelClient.ToolResult? {
-        val error = when {
-            toolName in DEVICE_DIRECT_TOOL_NAMES && !deviceDirectToolsEnabled() ->
-                "DEVICE_DIRECT_TOOLS_DISABLED" to "请先启用设备直达工具"
-            toolName in DEVICE_SENSITIVE_READ_TOOL_NAMES && !deviceSensitiveReadToolsEnabled() ->
-                "DEVICE_SENSITIVE_READ_TOOLS_DISABLED" to "请先允许读取敏感设备信息"
-            toolName in DEVICE_SENSITIVE_ACTION_TOOL_NAMES && !deviceSensitiveActionToolsEnabled() ->
-                "DEVICE_SENSITIVE_ACTION_TOOLS_DISABLED" to "请先允许敏感设备操作"
-            else -> null
-        } ?: return null
-        return AgentModelClient.ToolResult(
-            content = errorResult(error.first, error.second),
-            sensitive = toolName in DEVICE_SENSITIVE_READ_TOOL_NAMES ||
-                toolName in DEVICE_SENSITIVE_ACTION_TOOL_NAMES,
-        )
-    }
 
     private fun terminalTool(block: () -> String): String {
         if (!terminalToolsEnabled()) {
@@ -437,195 +362,9 @@ internal class AgentLocalTools(
         return json.toString()
     }
 
-    private fun searchApps(args: JSONObject): String {
-        val query = args.optString("query").trim()
-        if (query.isBlank()) {
-            return errorResult("INVALID_ARGUMENT", "query 不能为空")
-        }
-        val includeSystem = args.optBoolean("include_system", false)
-        val limit = args.optInt("limit", 10).coerceIn(1, 20)
-        val apps = findAppsByName(query, includeSystem).take(limit)
-        return JSONObject()
-            .put("ok", true)
-            .put("tool", "search_apps")
-            .put("query", query)
-            .put("apps", apps.toJsonArray())
-            .toString()
-    }
-
-    private fun launchApp(args: JSONObject): String {
-        val packageName = args.optString("package_name").trim().ifBlank { null }
-        val appName = args.optString("app_name").trim().ifBlank { null }
-
-        val app = if (packageName != null) {
-            findAppByPackage(packageName) ?: AppInfo(packageName = packageName, appName = appName ?: packageName)
-        } else {
-            if (appName == null) {
-                return errorResult("INVALID_ARGUMENT", "package_name 和 app_name 至少提供一个")
-            }
-            val matches = findAppsByName(appName, includeSystem = false)
-            val exactMatches = matches.filter { it.appName.equals(appName, ignoreCase = true) }
-            when {
-                exactMatches.size == 1 -> exactMatches.single()
-                matches.size == 1 -> matches.single()
-                matches.isEmpty() -> return errorResult(
-                    code = "APP_NOT_FOUND",
-                    message = "未找到应用：$appName"
-                )
-                else -> return JSONObject()
-                    .put("ok", false)
-                    .put("code", "AMBIGUOUS_APP")
-                    .put("message", "匹配到多个应用，请指定 package_name")
-                    .put("candidates", matches.take(10).toJsonArray())
-                    .toString()
-            }
-        }
-
-        val context = requireContext()
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(app.packageName)
-        if (launchIntent == null) {
-            return errorResult(
-                code = "APP_NOT_LAUNCHABLE",
-                message = "应用不可启动或未安装：${app.packageName}"
-            )
-        }
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-
-        checkCancellation()
-        context.startActivity(launchIntent)
-        logger.info("Agent local tool action=launch_app outcome=submitted canvas=main")
-        return JSONObject()
-            .put("ok", true)
-            .put("tool", "launch_app")
-            .put("app_name", app.appName)
-            .put("package_name", app.packageName)
-            .put("canvas", "main")
-            .put("launch_status", "submitted")
-            .toString()
-    }
-
-    private fun presentToUser(args: JSONObject): String {
-        val reason = args.optString("reason").trim()
-        return JSONObject()
-            .put("ok", true)
-            .put("tool", "present_to_user")
-            .put("canvas", "main")
-            .put("display_id", Display.DEFAULT_DISPLAY)
-            .put("presented", true)
-            .apply {
-                if (reason.isNotBlank()) put("reason", reason)
-            }
-            .toString()
-    }
-
-    private fun openUri(args: JSONObject): String {
-        val uriText = args.optString("uri").trim()
-        if (uriText.isBlank()) {
-            return errorResult("INVALID_ARGUMENT", "uri 不能为空")
-        }
-        val uri = Uri.parse(uriText)
-        if (uri.scheme.isNullOrBlank()) {
-            return errorResult("INVALID_ARGUMENT", "uri 缺少 scheme")
-        }
-        val context = requireContext()
-        val intent = Intent(Intent.ACTION_VIEW, uri)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (context.packageManager.resolveActivity(intent, 0) == null) {
-            return errorResult("NO_ACTIVITY", "没有应用可以处理该 URI")
-        }
-        checkCancellation()
-        context.startActivity(intent)
-        logger.info("Agent local tool action=open_uri outcome=started canvas=main")
-        return JSONObject()
-            .put("ok", true)
-            .put("tool", "open_uri")
-            .put("scheme", uri.scheme?.lowercase(Locale.ROOT))
-            .put("canvas", "main")
-            .put("display_id", Display.DEFAULT_DISPLAY)
-            .also { result ->
-                if (uri.scheme.equals("https", true)) {
-                    result.put("display_uri", uriText)
-                }
-            }
-            .toString()
-    }
-
-    private fun findAppByPackage(packageName: String): AppInfo? =
-        installedLauncherApps().firstOrNull { it.packageName == packageName }
-
-    private fun findAppsByName(query: String, includeSystem: Boolean): List<AppInfo> {
-        val normalizedQuery = query.normalized()
-        return installedLauncherApps()
-            .asSequence()
-            .filter { includeSystem || !it.isSystemApp }
-            .mapNotNull { app ->
-                val score = app.matchScore(query, normalizedQuery)
-                if (score == Int.MAX_VALUE) null else score to app
-            }
-            .sortedWith(compareBy<Pair<Int, AppInfo>> { it.first }.thenBy { it.second.appName })
-            .map { it.second }
-            .toList()
-    }
-
-    private fun AppInfo.matchScore(rawQuery: String, normalizedQuery: String): Int {
-        val normalizedName = appName.normalized()
-        val normalizedPackage = packageName.normalized()
-        return when {
-            packageName.equals(rawQuery, ignoreCase = true) -> 0
-            appName.equals(rawQuery, ignoreCase = true) -> 1
-            normalizedName == normalizedQuery -> 2
-            normalizedPackage.contains(normalizedQuery) -> 3
-            normalizedName.contains(normalizedQuery) -> 4
-            else -> Int.MAX_VALUE
-        }
-    }
-
-    private fun installedLauncherApps(): List<AppInfo> {
-        val context = requireContext()
-        val packageManager = context.packageManager
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val resolveInfos = packageManager.queryIntentActivities(
-            intent,
-            PackageManager.ResolveInfoFlags.of(0L)
-        )
-        val apps = linkedMapOf<String, AppInfo>()
-        resolveInfos.forEach { resolveInfo ->
-            val activityInfo = resolveInfo.activityInfo ?: return@forEach
-            val applicationInfo = activityInfo.applicationInfo ?: return@forEach
-            val packageName = applicationInfo.packageName ?: return@forEach
-            val appName = resolveInfo.loadLabel(packageManager).toString().trim()
-                .takeIf { it.isNotBlank() }
-                ?: packageName
-            apps.putIfAbsent(
-                packageName,
-                AppInfo(
-                    packageName = packageName,
-                    appName = appName,
-                    isSystemApp = applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
-                )
-            )
-        }
-        return apps.values.toList()
-    }
-
     private fun requireContext(): Context =
         AgentAppContext.resolve()
             ?: error("无法获取 Android 进程 Context")
-
-    private fun List<AppInfo>.toJsonArray(): JSONArray =
-        JSONArray().also { array ->
-            forEach { app ->
-                array.put(
-                    JSONObject()
-                        .put("app_name", app.appName)
-                        .put("package_name", app.packageName)
-                        .put("is_system_app", app.isSystemApp)
-                )
-            }
-        }
-
-    private fun String.normalized(): String =
-        trim().lowercase(Locale.ROOT)
 
     private fun String.isOkJson(): Boolean =
         runCatching { JSONObject(this).optBoolean("ok", false) }.getOrDefault(false)
@@ -1088,39 +827,7 @@ internal class AgentLocalTools(
         val candidatesByPath: Map<String, String>,
     )
 
-    private data class AppInfo(
-        val packageName: String,
-        val appName: String,
-        val isSystemApp: Boolean = false
-    )
-
     private companion object {
-        val DEVICE_DIRECT_TOOL_NAMES = setOf(
-            "get_flashlight",
-            "set_flashlight",
-            "get_display_state",
-            "get_sound_state",
-            "set_do_not_disturb",
-            "set_volume",
-            "set_alarm",
-            "set_timer",
-            "inspect_app",
-            "device_status",
-            "network_info",
-            "media_control",
-        )
-        val DEVICE_SENSITIVE_READ_TOOL_NAMES = setOf(
-            "recent_notifications",
-            "search_notification_history",
-            "recent_app_activity",
-            "app_usage_summary",
-            "get_current_location",
-            "get_device_environment",
-        )
-        val DEVICE_SENSITIVE_ACTION_TOOL_NAMES = emptySet<String>()
-        val DEVICE_TOOL_NAMES =
-            DEVICE_DIRECT_TOOL_NAMES + DEVICE_SENSITIVE_READ_TOOL_NAMES +
-                DEVICE_SENSITIVE_ACTION_TOOL_NAMES
         val MEMORY_TOOL_NAMES = setOf("memory_get", "memory_write")
         const val MAX_CLIPBOARD_TEXT_CHARS = 1_000
     }

@@ -16,7 +16,7 @@ class RoleplayConversationReducerTest {
         val journal = listOf(
             ConversationMessage("assistant", "你好", messageId = "greeting"),
             ConversationMessage("user", "查询日历", messageId = "user-r1"),
-            ConversationMessage("assistant", toolCallsJson = """[{"id":"tool-1","type":"function","function":{"name":"get_current_context","arguments":"{}"}}]""", messageId = "assistant-r1-1"),
+            ConversationMessage("assistant", toolCallsJson = """[{"id":"tool-1","type":"function","function":{"name":"memory_get","arguments":"{}"}}]""", messageId = "assistant-r1-1"),
             ConversationMessage("tool", "今天有会议", toolCallId = "tool-1"),
             ConversationMessage("assistant", "今天有会议。", messageId = "assistant-r1-2"),
             ConversationMessage("user", "谢谢", messageId = "user-r2"),

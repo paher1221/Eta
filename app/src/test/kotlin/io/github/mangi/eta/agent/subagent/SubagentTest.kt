@@ -35,9 +35,6 @@ class SubagentTest {
         val fullCatalog = AgentToolCatalog.build(
             terminalTools = true,
             browserTools = true,
-            deviceDirectTools = true,
-            deviceSensitiveReadTools = true,
-            deviceSensitiveActionTools = true,
             memoryTools = true,
             capabilities = AgentToolCapabilities(rootAvailable = true),
         ).also { it.put(AgentSubagentToolCatalog.schema()) }
@@ -106,11 +103,11 @@ class SubagentTest {
                 name = "ad-hoc-auditor",
                 catalog = SubagentProfileCatalog.listAll(tempDir),
                 customRole = "专门核对近三天通知与日程冲突",
-                customTools = listOf("search_calendar_events", "recent_notifications", "observe_screen"),
+                customTools = listOf("search_calendar_events", "memory_get", "observe_screen"),
             )
             assertEquals("ad-hoc-auditor", ephemeral.name)
             assertTrue(ephemeral.isToolAllowed("search_calendar_events"))
-            assertTrue(ephemeral.isToolAllowed("recent_notifications"))
+            assertTrue(ephemeral.isToolAllowed("memory_get"))
             assertFalse(ephemeral.isToolAllowed("observe_screen"))
             assertFalse(ephemeral.isToolAllowed("write_file"))
             assertFalse(SubagentProfileCatalog.listAll(tempDir).any { it.name == "ad-hoc-auditor" })
@@ -439,17 +436,14 @@ class SubagentTest {
         val defaultEphemeral = SubagentProfile.resolve(name = "log-auditor")
         assertTrue(defaultEphemeral.isToolAllowed("read_file"))
         assertTrue(defaultEphemeral.isToolAllowed("terminal"))
-        assertFalse(defaultEphemeral.isToolAllowed("set_volume"))
-        assertFalse(defaultEphemeral.isToolAllowed("set_flashlight"))
-        assertFalse(defaultEphemeral.isToolAllowed("set_do_not_disturb"))
         assertFalse(defaultEphemeral.isToolAllowed("observe_screen"))
 
-        val explicitAlarm = SubagentProfile.resolve(
-            name = "alarm-helper",
-            customTools = listOf("set_alarm", "observe_screen"),
+        val explicitMemory = SubagentProfile.resolve(
+            name = "memory-helper",
+            customTools = listOf("memory_get", "observe_screen"),
         )
-        assertTrue(explicitAlarm.isToolAllowed("set_alarm"))
-        assertFalse(explicitAlarm.isToolAllowed("observe_screen"))
+        assertTrue(explicitMemory.isToolAllowed("memory_get"))
+        assertFalse(explicitMemory.isToolAllowed("observe_screen"))
     }
 
     @Test

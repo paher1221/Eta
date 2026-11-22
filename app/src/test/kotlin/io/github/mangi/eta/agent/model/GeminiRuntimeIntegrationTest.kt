@@ -144,12 +144,12 @@ class GeminiRuntimeIntegrationTest {
     private fun signedCall(): JSONObject = JSONObject().put("role", "assistant")
         .put("content", "").put("finish_reason", "tool_calls")
         .put("tool_calls", JSONArray().put(JSONObject().put("id", "call-1").put("type", "function")
-            .put("function", JSONObject().put("name", "get_current_context").put("arguments", "{}"))))
+            .put("function", JSONObject().put("name", "set_clipboard").put("arguments", "{}"))))
         .also { message ->
             GeminiEphemeralState.attachSteps(message, JSONArray()
                 .put(JSONObject().put("type", "thought").put("signature", "opaque-fixture"))
                 .put(JSONObject().put("type", "function_call").put("id", "call-1")
-                    .put("name", "get_current_context").put("arguments", JSONObject())))
+                    .put("name", "set_clipboard").put("arguments", JSONObject())))
         }
 
     private fun provider(block: (ProviderRequest, (ProviderEvent) -> Unit) -> JSONObject) =

@@ -35,7 +35,6 @@ class AppRouteSerializationTest {
             AppRoute.ScheduledTaskEditor(presetId = "evening_briefing"),
             AppRoute.Subagents,
             AppRoute.ConversationTitleSettings,
-            AppRoute.AssistantOverlaySettings,
             AppRoute.Characters,
             AppRoute.CharacterDetail("character"),
             AppRoute.CharacterEditor(),

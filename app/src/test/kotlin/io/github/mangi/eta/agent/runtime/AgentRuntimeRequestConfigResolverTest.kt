@@ -52,7 +52,7 @@ class AgentRuntimeRequestConfigResolverTest {
             apiKey = "fixture-untrusted", baseUrl = "https://untrusted.invalid",
             customHeaders = listOf(CustomHeader("x-untrusted", "fixture")),
             reasoningEffort = ReasoningEffort.HIGH,
-            terminalTools = true, deviceSensitiveReadTools = true,
+            terminalTools = true,
             autoCompactionEnabled = false,
         )
         val request = request("external", entry)
@@ -64,7 +64,6 @@ class AgentRuntimeRequestConfigResolverTest {
         assertEquals(local.customHeaders, result.customHeaders)
         assertEquals(ReasoningEffort.HIGH, result.reasoningEffort)
         assertTrue(result.terminalTools)
-        assertTrue(result.deviceSensitiveReadTools)
         assertFalse(result.autoCompactionEnabled)
     }
 
@@ -83,43 +82,18 @@ class AgentRuntimeRequestConfigResolverTest {
     }
 
     @Test
-    fun etaVoiceRequestUsesRuntimeConfigAndUpdatesArchiveMetadata() {
-        val runtimeConfig = modelConfig("runtime-key", ReasoningEffort.HIGH)
-        val request = request(
-            source = AgentRuntimeWire.ETA_VOICE_HANDOFF_SOURCE,
-            config = modelConfig("entry-key", ReasoningEffort.OFF),
-        )
+    fun etaVoiceRequestKeepsEntryConfigWithoutRuntimeSubstitution() {
+        val entryConfig = modelConfig("entry-key", ReasoningEffort.OFF)
+        val request = request(source = AgentRuntimeWire.ETA_VOICE_HANDOFF_SOURCE, config = entryConfig)
 
-        val resolved = AgentRuntimeRequestConfigResolver.applyRuntimeConfig(request, runtimeConfig)
-        val payload = AgentExternalArchivePayload.from(requireNotNull(resolved.handoff).payload)
-
-        assertTrue(AgentRuntimeRequestConfigResolver.requiresRuntimeConfig(request))
-        assertEquals("runtime-key", resolved.config.apiKey)
-        requireNotNull(payload)
-        assertTrue(requireNotNull(payload.thinkingEnabled))
-        assertEquals(ReasoningEffort.HIGH, payload.reasoningEffort)
-    }
-
-    @Test
-    fun etaVoiceRequestKeepsEntryToolSwitchesWhileTakingRuntimeModel() {
-        val entry = modelConfig("entry-key", ReasoningEffort.OFF).copy(
-            terminalTools = true,
-            deviceSensitiveReadTools = true,
-            deviceSensitiveActionTools = true,
-            browserTools = false,
-        )
-        val request = request(source = AgentRuntimeWire.ETA_VOICE_HANDOFF_SOURCE, config = entry)
-
+        assertFalse(AgentRuntimeRequestConfigResolver.requiresRuntimeConfig(request))
         val resolved = AgentRuntimeRequestConfigResolver.applyRuntimeConfig(
             request,
             modelConfig("runtime-key", ReasoningEffort.HIGH),
-        ).config
+        )
 
-        assertEquals("runtime-key", resolved.apiKey)
-        assertTrue(resolved.terminalTools)
-        assertTrue(resolved.deviceSensitiveReadTools)
-        assertTrue(resolved.deviceSensitiveActionTools)
-        assertFalse(resolved.browserTools)
+        assertSame(request, resolved)
+        assertSame(entryConfig, resolved.config)
     }
 
     @Test

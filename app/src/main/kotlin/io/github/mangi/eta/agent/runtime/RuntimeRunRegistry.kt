@@ -1,7 +1,6 @@
 package io.github.mangi.eta.agent.runtime
 
 import io.github.mangi.eta.agent.model.AgentModelClient
-import io.github.mangi.eta.agent.overlay.AgentOverlayState
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.CountDownLatch
 
@@ -30,9 +29,7 @@ internal class RuntimeRunRegistry(private val capacity: Int = MAX_ACTIVE_RUNS) {
         @Volatile var preparing: Boolean = true
             private set
         @Volatile var guiStatus: GuiControlStatus? = null
-        var overlayState: AgentOverlayState = AgentOverlayState.Initial
-        var hasExecutedForegroundTool: Boolean = false
-        var completedContext: CompletedContext? = null
+        @Volatile var status: AgentOverlayStatus = AgentOverlayStatus.Reasoning
         internal var predecessors: List<Run> = emptyList()
         private val terminal = CountDownLatch(1)
 

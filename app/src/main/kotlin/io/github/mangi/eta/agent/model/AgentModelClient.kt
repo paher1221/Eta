@@ -51,11 +51,6 @@ internal object AgentModelClient {
                 return runtime.copy(
                     terminalTools = Prefs.isEnabled(Prefs.Keys.AGENT_TERMINAL_TOOLS),
                     browserTools = Prefs.isEnabled(Prefs.Keys.AGENT_BROWSER_TOOLS),
-                    deviceDirectTools = Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_DIRECT_TOOLS),
-                    deviceSensitiveReadTools =
-                        Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_READ_TOOLS),
-                    deviceSensitiveActionTools =
-                        Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_ACTION_TOOLS),
                     thinkingEnabled = effort.enablesReasoning,
                     reasoningEffort = effort,
                     autoCompactionEnabled = Prefs.isEnabled(Prefs.Keys.AGENT_AUTO_COMPACTION_ENABLED),
@@ -81,11 +76,6 @@ internal object AgentModelClient {
             subagentTools = Prefs.isEnabled(Prefs.Keys.AGENT_SUBAGENT_ENABLED),
             terminalTools = Prefs.isEnabled(Prefs.Keys.AGENT_TERMINAL_TOOLS),
             browserTools = Prefs.isEnabled(Prefs.Keys.AGENT_BROWSER_TOOLS),
-            deviceDirectTools = Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_DIRECT_TOOLS),
-            deviceSensitiveReadTools =
-                Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_READ_TOOLS),
-            deviceSensitiveActionTools =
-                Prefs.isEnabled(Prefs.Keys.AGENT_DEVICE_SENSITIVE_ACTION_TOOLS),
             thinkingEnabled = Prefs.isEnabled(Prefs.Keys.AGENT_THINKING_ENABLED),
             reasoningEffort = ReasoningEffort.fromLegacy(
                 Prefs.isEnabled(Prefs.Keys.AGENT_THINKING_ENABLED)
@@ -164,9 +154,6 @@ internal object AgentModelClient {
             val tools = AgentToolCatalog.build(
                 terminalTools = config.terminalTools,
                 browserTools = config.browserTools,
-                deviceDirectTools = config.deviceDirectTools,
-                deviceSensitiveReadTools = config.deviceSensitiveReadTools,
-                deviceSensitiveActionTools = config.deviceSensitiveActionTools,
                 skillGitHubDiscovery = true,
                 skillGitHubInstall = true,
                 memoryTools = memoryContext.enabled,
@@ -343,9 +330,6 @@ internal object AgentModelClient {
     ): ConversationMessage =
         AgentConversationCodec.durableMessage(AgentConversationCodec.userMessage(text, images))
 
-    internal fun summarizeOpenUriArguments(argumentsJson: String): String =
-        traceFormatter.summarizeOpenUriArguments(argumentsJson)
-
     internal fun summarizeBrowserToolArguments(argumentsJson: String): String =
         traceFormatter.summarizeBrowserArguments(argumentsJson)
 
@@ -373,9 +357,6 @@ internal object AgentModelClient {
         val supportsSearchSuggestions: Boolean = false,
         val terminalTools: Boolean = false,
         val browserTools: Boolean = true,
-        val deviceDirectTools: Boolean = true,
-        val deviceSensitiveReadTools: Boolean = false,
-        val deviceSensitiveActionTools: Boolean = false,
         val thinkingEnabled: Boolean = false,
         val reasoningEffort: ReasoningEffort? = null,
         val reasoningCapabilities: ModelReasoningCapabilities? = null,

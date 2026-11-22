@@ -18,12 +18,12 @@ import org.junit.Test
 class AgentModelClientLoopTest {
     @Test
     fun transientCapabilityLossDoesNotShrinkTheToolCatalogMidRun() {
-        var notifications = true
+        var hotspot = true
         val toolLists = mutableListOf<String>()
         val provider = ScriptedProvider(listOf(
             { request, _ ->
                 toolLists += request.tools.toString()
-                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("context", "get_current_context", "{}")))
+                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("context", "set_clipboard", "{}")))
             },
             { request, _ ->
                 toolLists += request.tools.toString()
@@ -31,49 +31,16 @@ class AgentModelClientLoopTest {
             },
         ))
         AgentModelClient.complete(
-            modelConfig().copy(deviceSensitiveReadTools = true), "看一下屏幕",
+            modelConfig(), "看一下屏幕",
             AgentModelClient.ToolExecutor {
-                notifications = false
+                hotspot = false
                 AgentModelClient.ToolResult("""{"ok":true}""")
             },
             provider = provider,
-            capabilitiesProvider = { AgentToolCapabilities(rootAvailable = false, notificationsAllowed = notifications) },
+            capabilitiesProvider = { AgentToolCapabilities(rootAvailable = false, hotspotAvailable = hotspot) },
         )
-        assertTrue(toolLists[0].contains("recent_notifications"))
+        assertTrue(toolLists[0].contains("set_clipboard"))
         assertEquals(toolLists[0], toolLists[1])
-    }
-
-    @Test
-    fun capabilityLostMidRunStaysListedButExecutionReportsTheCatalogCode() {
-        var notifications = true
-        val executed = mutableListOf<String>()
-        val results = mutableListOf<String>()
-        val provider = ScriptedProvider(listOf(
-            { request, _ ->
-                assertTrue(request.tools.toString().contains("recent_notifications"))
-                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("ctx", "get_current_context", "{}")))
-            },
-            { request, _ ->
-                assertTrue(request.tools.toString().contains("recent_notifications"))
-                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("notes", "recent_notifications", "{}")))
-            },
-            { request, _ ->
-                results += request.messages.toString()
-                assistant(content = "完成", finishReason = "stop")
-            },
-        ))
-        AgentModelClient.complete(
-            modelConfig().copy(deviceSensitiveReadTools = true), "看看通知",
-            AgentModelClient.ToolExecutor { call ->
-                executed += call.id
-                notifications = false
-                AgentModelClient.ToolResult("""{"ok":true}""")
-            },
-            provider = provider,
-            capabilitiesProvider = { AgentToolCapabilities(rootAvailable = false, notificationsAllowed = notifications) },
-        )
-        assertEquals(listOf("ctx"), executed)
-        assertTrue(results.single().contains("NOTIFICATION_ACCESS_REQUIRED"))
     }
 
     @Test
@@ -127,22 +94,21 @@ class AgentModelClientLoopTest {
 
     @Test
     fun eachRoundUsesOneCapabilitySnapshotForToolAvailabilityAndPrompt() {
-        var notifications = true
         var root = true
         var captures = 0
         val executed = mutableListOf<String>()
         val provider = ScriptedProvider(listOf(
             { request, _ ->
-                assertTrue(request.tools.toString().contains("recent_notifications"))
+                assertTrue(request.tools.toString().contains("terminal"))
                 assertTrue(request.messages.toString().contains("相关应用私有文件与数据库"))
-                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("first", "get_current_context", "{}")))
+                assistant(finishReason = "tool_calls", toolCalls = listOf(toolCall("first", "set_clipboard", "{}")))
             },
             { request, _ ->
-                assertFalse(request.tools.toString().contains("recent_notifications"))
                 assertFalse(request.messages.toString().contains("相关应用私有文件与数据库"))
+                assertTrue(request.messages.toString().contains("当前尚未确认可用的设备 Root 授权"))
                 assertTrue(request.messages.toString().contains("identity=user"))
                 assistant(finishReason = "tool_calls", toolCalls = listOf(
-                    toolCall("stale", "recent_notifications", "{}"),
+                    toolCall("stale", "web_search", "{}"),
                 ))
             },
             { request, _ ->
@@ -151,16 +117,15 @@ class AgentModelClientLoopTest {
             },
         ))
         AgentModelClient.complete(
-            config = modelConfig().copy(terminalTools = true, deviceSensitiveReadTools = true),
+            config = modelConfig().copy(terminalTools = true),
             prompt = "开始",
             provider = provider,
             capabilitiesProvider = {
                 captures++
-                AgentToolCapabilities(rootAvailable = root, notificationsAllowed = notifications)
+                AgentToolCapabilities(rootAvailable = root)
             },
             toolExecutor = AgentModelClient.ToolExecutor {
                 executed += it.id
-                notifications = false
                 root = false
                 AgentModelClient.ToolResult("{\"ok\":true}")
             },
@@ -172,41 +137,39 @@ class AgentModelClientLoopTest {
 
     @Test
     fun signedAnthropicToolRoundKeepsTheOriginalToolAndSystemDeclarations() {
-        var root = true
         var captures = 0
         val firstAssistant = assistant(
             finishReason = "tool_calls",
-            toolCalls = listOf(toolCall("signed-call", "get_current_context", "{}")),
+            toolCalls = listOf(toolCall("signed-call", "set_clipboard", "{}")),
         ).also { response ->
             AnthropicEphemeralState.attachContentBlocks(response, JSONArray()
                 .put(JSONObject().put("type", "thinking").put("thinking", "")
                     .put("signature", "signed-prefix"))
                 .put(JSONObject().put("type", "tool_use").put("id", "signed-call")
-                    .put("name", "get_current_context").put("input", JSONObject())))
+                    .put("name", "set_clipboard").put("input", JSONObject())))
         }
         val provider = ScriptedProvider(listOf(
             { request, _ ->
-                assertTrue(request.tools.toString().contains("recent_notifications"))
+                assertTrue(request.tools.toString().contains("terminal"))
                 assertTrue(request.messages.toString().contains("相关应用私有文件与数据库"))
                 firstAssistant
             },
             { request, _ ->
-                assertTrue(request.tools.toString().contains("recent_notifications"))
+                assertTrue(request.tools.toString().contains("terminal"))
                 assertTrue(request.messages.toString().contains("相关应用私有文件与数据库"))
                 assistant(content = "完成", finishReason = "stop")
             },
         ))
 
         AgentModelClient.complete(
-            config = modelConfig().copy(terminalTools = true, deviceSensitiveReadTools = true),
+            config = modelConfig().copy(terminalTools = true),
             prompt = "开始",
             provider = provider,
             capabilitiesProvider = {
                 captures++
-                AgentToolCapabilities(rootAvailable = root, notificationsAllowed = true)
+                AgentToolCapabilities(rootAvailable = true)
             },
             toolExecutor = AgentModelClient.ToolExecutor {
-                root = false
                 AgentModelClient.ToolResult("工具结果")
             },
         )
@@ -245,8 +208,8 @@ class AgentModelClientLoopTest {
                 content = "先执行",
                 finishReason = "tool_calls",
                 toolCalls = listOf(
-                    toolCall("call-1", "get_current_context", "{}"),
-                    toolCall("call-2", "get_current_context", "{}"),
+                    toolCall("call-1", "set_clipboard", "{}"),
+                    toolCall("call-2", "set_clipboard", "{}"),
                 ),
                 reasoning = "需要两个结果",
             ),
@@ -292,8 +255,8 @@ class AgentModelClientLoopTest {
             assistant(
                 finishReason = "tool_calls",
                 toolCalls = listOf(
-                    toolCall("call-1", "get_current_context", "{}"),
-                    toolCall("call-2", "get_current_context", "{}"),
+                    toolCall("call-1", "set_clipboard", "{}"),
+                    toolCall("call-2", "set_clipboard", "{}"),
                 ),
             ),
             assistant(content = "已按补充完成", finishReason = "stop"),
@@ -394,8 +357,8 @@ class AgentModelClientLoopTest {
     @Test
     fun malformedAndDuplicateToolCallsReceiveStableTerminalResults() {
         val malformedCalls = JSONArray()
-            .put(toolCall("duplicate", "get_current_context", "{}"))
-            .put(toolCall("duplicate", "get_current_context", "{}"))
+            .put(toolCall("duplicate", "set_clipboard", "{}"))
+            .put(toolCall("duplicate", "set_clipboard", "{}"))
             .put("not-an-object")
         val firstResponse = assistant(content = "", finishReason = "tool_calls")
             .put("tool_calls", malformedCalls)
@@ -417,8 +380,8 @@ class AgentModelClientLoopTest {
 
         assertEquals(
             listOf(
-                "duplicate" to "get_current_context",
-                "duplicate_1" to "get_current_context",
+                "duplicate" to "set_clipboard",
+                "duplicate_1" to "set_clipboard",
             ),
             executed,
         )
@@ -444,8 +407,8 @@ class AgentModelClientLoopTest {
             assistant(
                 finishReason = "tool_calls",
                 toolCalls = listOf(
-                    toolCall("call-1", "device_status", "{}"),
-                    toolCall("call-2", "get_current_context", "{}"),
+                    toolCall("call-1", "set_clipboard", "{}"),
+                    toolCall("call-2", "set_clipboard", "{}"),
                 ),
             ),
             assistant(content = "看到了", finishReason = "stop"),
@@ -487,7 +450,7 @@ class AgentModelClientLoopTest {
         val provider = ScriptedProvider(
             assistant(
                 finishReason = "tool_calls",
-                toolCalls = listOf(toolCall("observe", "device_status", "{}")),
+                toolCalls = listOf(toolCall("observe", "set_clipboard", "{}")),
             ),
             assistant(
                 finishReason = "tool_calls",
@@ -532,11 +495,11 @@ class AgentModelClientLoopTest {
         val provider = ScriptedProvider(
             assistant(
                 finishReason = "tool_calls",
-                toolCalls = listOf(toolCall("observe-1", "device_status", "{}")),
+                toolCalls = listOf(toolCall("observe-1", "set_clipboard", "{}")),
             ),
             assistant(
                 finishReason = "tool_calls",
-                toolCalls = listOf(toolCall("observe-2", "device_status", "{}")),
+                toolCalls = listOf(toolCall("observe-2", "set_clipboard", "{}")),
             ),
             assistant(content = "完成", finishReason = "stop"),
         )
@@ -572,7 +535,7 @@ class AgentModelClientLoopTest {
         val calls = listOf(
             toolCall("write", "write_file", """{"path":"note.md","content":"内容","identity":"USER","extra":true}"""),
             toolCall("read", "read_file", """{"path":"note.md","start_line":1,"offset_bytes":0,"max_bytes":1000000}"""),
-            toolCall("missing", "device_status", "{}"),
+            toolCall("missing", "set_clipboard", "{}"),
         )
         val provider = ScriptedProvider(
             assistant(finishReason = "tool_calls", toolCalls = calls),
@@ -697,7 +660,7 @@ class AgentModelClientLoopTest {
             val provider = ScriptedProvider(
                 assistant(
                     finishReason = finishReason,
-                    toolCalls = listOf(toolCall("call-1", "get_current_context", "{}")),
+                    toolCalls = listOf(toolCall("call-1", "set_clipboard", "{}")),
                 ),
                 assistant(content = "完成", finishReason = "stop"),
             )
@@ -726,7 +689,7 @@ class AgentModelClientLoopTest {
                         finishReason = "tool_calls",
                         reasoning = "先检查状态",
                         toolCalls = listOf(
-                            toolCall("call-1", "get_current_context", "{}")
+                            toolCall("call-1", "set_clipboard", "{}")
                         ),
                     )
                 },
@@ -756,7 +719,7 @@ class AgentModelClientLoopTest {
             { _, _ ->
                 assistant(
                     finishReason = "tool_calls",
-                    toolCalls = listOf(toolCall("call-$index", "get_current_context", "{}")),
+                    toolCalls = listOf(toolCall("call-$index", "set_clipboard", "{}")),
                 )
             }
         } + listOf<(ProviderRequest, AgentRunController) -> JSONObject>(
@@ -804,7 +767,7 @@ class AgentModelClientLoopTest {
                     1 -> ProviderResponse(assistant(
                         finishReason = "tool_calls",
                         reasoning = "先观察",
-                        toolCalls = listOf(toolCall("observe-1", "get_current_context", "{}")),
+                        toolCalls = listOf(toolCall("observe-1", "set_clipboard", "{}")),
                     ))
                     2 -> {
                         onEvent(ProviderEvent.BlockDelta(AssistantBlockKind.THINKING, 0, "失败的思考"))
@@ -975,7 +938,7 @@ class AgentModelClientLoopTest {
                 { _, _ ->
                     assistant(
                         finishReason = "tool_calls",
-                        toolCalls = listOf(toolCall("obs_1", "device_status", "{}")),
+                        toolCalls = listOf(toolCall("obs_1", "set_clipboard", "{}")),
                     )
                 },
                 { _, _ ->

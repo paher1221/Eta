@@ -11,17 +11,6 @@ class AgentTraceFormatterTest {
     private val formatter = AgentTraceFormatter()
 
     @Test
-    fun currentContextIsPresentedAsTimeAndLocationWithoutRequiringAnOkField() {
-        assertEquals("读取时间与位置", formatter.summarizeArguments(
-            AgentModelClient.ToolCall("context", "get_current_context", "{}"),
-        ))
-        assertEquals("2026-10-28 12:30 +08:00 · 系统定位已关闭", formatter.summarizeResult(
-            "get_current_context",
-            AgentModelClient.ToolResult("""{"datetime":"2026-10-28T12:30:00+08:00","location":{"status":"location_disabled"}}"""),
-        ))
-    }
-
-    @Test
     fun terminalLifecyclesHaveDistinctLabelsAndKeepCommandRedaction() {
         listOf(
             "terminal" to """{"command":"echo secret-marker"}""",
@@ -229,12 +218,6 @@ class AgentTraceFormatterTest {
 
     @Test
     fun specializedResultsKeepFailureAndSubmissionSemantics() {
-        assertEquals("自动息屏：30 秒 → 2 分钟", formatter.summarizeResult("set_screen_timeout", AgentModelClient.ToolResult(
-            """{"ok":true,"verified":true,"before":30000,"after":120000}""",
-        )))
-        assertEquals("已提交计时请求 · 5 分钟", formatter.summarizeResult("set_timer", AgentModelClient.ToolResult(
-            """{"ok":true,"status":"dispatched","verified":false,"duration_seconds":300}""",
-        )))
         assertEquals("已追加 512 字节", formatter.summarizeResult("write_file", AgentModelClient.ToolResult(
             """{"ok":true,"mode":"append","bytes_written":512}""",
         )))
@@ -438,15 +421,6 @@ class AgentTraceFormatterTest {
 
     @Test
     fun searchQueryIsShownInSummary() {
-        val searchApps = formatter.summarizeArguments(
-            AgentModelClient.ToolCall(
-                id = "search-apps",
-                name = "search_apps",
-                argumentsJson = """{"query":"抖音"}""",
-            ),
-        )
-        assertEquals("搜索应用 · 抖音", searchApps)
-
         val searchFiles = formatter.summarizeArguments(
             AgentModelClient.ToolCall(
                 id = "search-files",
@@ -460,76 +434,22 @@ class AgentTraceFormatterTest {
         val longQuery = formatter.summarizeArguments(
             AgentModelClient.ToolCall(
                 id = "search-long",
-                name = "search_apps",
+                name = "search_files",
                 argumentsJson = """{"query":"${"很长的关键词".repeat(10)}\n第二行"}""",
             ),
         )
         assertFalse(longQuery.contains("\n"))
-        assertTrue(longQuery.length <= "搜索应用 · ".length + 30 + 3)
+        assertTrue(longQuery.length <= "搜索文件 · ".length + 30 + 3)
 
         // 非搜索类设备工具不追加 query
-        val deviceStatus = formatter.summarizeArguments(
+        val getSetting = formatter.summarizeArguments(
             AgentModelClient.ToolCall(
-                id = "device-status",
-                name = "device_status",
+                id = "get-setting",
+                name = "get_setting",
                 argumentsJson = """{"query":"不应出现"}""",
             ),
         )
-        assertEquals("查看设备状态", deviceStatus)
-    }
-
-    @Test
-    fun searchAppsResultListsAppNames() {
-        val summary = formatter.summarizeResult(
-            "search_apps",
-            AgentModelClient.ToolResult(
-                content = """
-                    {"ok":true,"tool":"search_apps","query":"抖音","apps":[
-                      {"app_name":"抖音","package_name":"com.ss.android.ugc.aweme","is_system_app":false},
-                      {"app_name":"抖音极速版","package_name":"com.ss.android.ugc.aweme.lite","is_system_app":false},
-                      {"app_name":"抖音商城","package_name":"com.ss.android.ugc.livelite","is_system_app":false},
-                      {"app_name":"抖音火山版","package_name":"com.ss.android.ugc.live","is_system_app":false}
-                    ]}
-                """.trimIndent(),
-            ),
-        )
-
-        assertTrue(summary.contains("已找到 4 个应用"))
-        assertTrue(summary.contains("抖音、抖音极速版、抖音商城"))
-        assertTrue(summary.contains("等"))
-        assertFalse(summary.contains("com.ss.android"))
-
-        val empty = formatter.summarizeResult(
-            "search_apps",
-            AgentModelClient.ToolResult(
-                content = """{"ok":true,"tool":"search_apps","query":"不存在的应用","apps":[]}""",
-            ),
-        )
-        assertEquals("未找到匹配应用", empty)
-    }
-
-    @Test
-    fun launchAppResultShowsAppName() {
-        val summary = formatter.summarizeResult(
-            "launch_app",
-            AgentModelClient.ToolResult(
-                content = """{"ok":true,"tool":"launch_app","app_name":"抖音","package_name":"com.ss.android.ugc.aweme"}""",
-            ),
-        )
-
-        assertEquals("已打开 · 抖音", summary)
-    }
-
-    @Test
-    fun unconfirmedLaunchDoesNotClaimTheAppHasOpened() {
-        val summary = formatter.summarizeResult(
-            "launch_app",
-            AgentModelClient.ToolResult(
-                content = """{"ok":true,"app_name":"示例应用","canvas":"virtual","launch_status":"unconfirmed"}""",
-            ),
-        )
-
-        assertEquals("已请求打开，待确认 · 示例应用 · 虚拟屏", summary)
+        assertEquals("读取系统设置", getSetting)
     }
 
     @Test

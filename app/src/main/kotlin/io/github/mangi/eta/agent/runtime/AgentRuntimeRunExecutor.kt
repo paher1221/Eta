@@ -26,7 +26,6 @@ import io.github.mangi.eta.agent.subagent.SubagentExecutor
 import io.github.mangi.eta.agent.mcp.McpRunSnapshot
 import io.github.mangi.eta.agent.mcp.McpToolExecutor
 import io.github.mangi.eta.agent.mcp.RoutingToolExecutor
-import io.github.mangi.eta.agent.overlay.AgentOverlayVisibilityPolicy
 import io.github.mangi.eta.agent.skill.SkillCompatibilityChecker
 import io.github.mangi.eta.agent.skill.SkillContext
 import io.github.mangi.eta.agent.skill.SkillRuntime
@@ -36,7 +35,6 @@ import io.github.mangi.eta.agent.tool.AgentToolRequirements
 import io.github.mangi.eta.agent.tool.AgentToolCapabilities
 import io.github.mangi.eta.agent.tool.PendingSkillConflictCapabilityParser
 import io.github.mangi.eta.agent.tool.ToolExecutionDecision
-import io.github.mangi.eta.agent.voice.EtaAssistantOverlayService
 import io.github.mangi.eta.config.Prefs
 import io.github.mangi.eta.core.AndroidAgentLogger
 import io.github.mangi.eta.core.AppStrings
@@ -59,7 +57,7 @@ internal class AgentRuntimeRunExecutor(
     private val currentPermissions: () -> AgentRuntimePolicy.Permissions,
     private val snapshotRequest: (AgentRuntimeWire.RunRequest) -> AgentRuntimeWire.RunRequest,
     private val guiControl: GuiControlCoordinator,
-    private val onAcceptedEvent: (AgentEvent, EntrySurfaceGuard?) -> Unit,
+    private val onAcceptedEvent: (AgentEvent) -> Unit,
     private val persistArtifacts: (
         AgentRuntimeWire.RunRequest,
         AgentRuntimeWire.RunResult,
@@ -68,7 +66,6 @@ internal class AgentRuntimeRunExecutor(
 ) {
     data class Outcome(
         val result: AgentRuntimeWire.RunResult,
-        val entrySurfaceGuard: EntrySurfaceGuard?,
         val completedRequest: AgentRuntimeWire.RunRequest? = null,
         val response: AgentModelClient.ModelResponse.Text? = null,
         val shouldUpdateHost: Boolean,
@@ -82,7 +79,6 @@ internal class AgentRuntimeRunExecutor(
     ): Outcome {
         val runController = session.controller
         val archivedEvents = AgentRunArchiveStore.createEventBuffer(request.handoff)
-        var entrySurfaceGuard: EntrySurfaceGuard? = null
         var toolExecutor: AutoCloseable? = null
         var toolsBinding: AgentRunController.ResourceBinding? = null
         var guiRun: GuiControlCoordinator.RunControl? = null
@@ -97,13 +93,6 @@ internal class AgentRuntimeRunExecutor(
         val result = try {
             val contextWindow = request.config.knownContextWindow
             checkpointRecorder = AgentRunCheckpointRecorder.create(appContext, request)
-            entrySurfaceGuard = EntrySurfaceGuard.from(
-                handoff = request.handoff,
-                logger = AndroidAgentLogger,
-                etaVoiceSurfaceDismissal = {
-                    EtaAssistantOverlayService.dismissForForegroundOperation(appContext)
-                },
-            )
             val skillIndexService = SkillRuntime.createIndexService(appContext)
             val skillLoader = SkillRuntime.createLoader(appContext)
             val skillResourceReader = SkillRuntime.createResourceReader(appContext)
@@ -168,7 +157,7 @@ internal class AgentRuntimeRunExecutor(
             } else {
                 AgentMemoryContext.DISABLED
             }
-            if (request.config.terminalTools || request.config.deviceDirectTools) {
+            if (request.config.terminalTools) {
                 runController.throwIfCancelled()
             }
             val pendingSkillConflict = PendingSkillConflictCapabilityParser.parse(request.history)
@@ -189,8 +178,7 @@ internal class AgentRuntimeRunExecutor(
             browserBinding = BrowserSessionRegistry.acquireRun(browserKey, request.runId)
             guiRun = guiControl.openRun(request.runId, runController) { status ->
                 acceptEvent(
-                    session, AgentEvent.GuiControlChanged(status), archivedEvents,
-                    entrySurfaceGuard, checkpointRecorder,
+                    session, AgentEvent.GuiControlChanged(status), archivedEvents, checkpointRecorder,
                 )
             }
             val executor = AgentLocalTools(
@@ -208,33 +196,11 @@ internal class AgentRuntimeRunExecutor(
                 terminalToolsEnabled = {
                     request.config.terminalTools && currentPermissions().terminalTools
                 },
-                deviceDirectToolsEnabled = {
-                    request.config.deviceDirectTools && currentPermissions().deviceDirectTools
-                },
-                deviceSensitiveReadToolsEnabled = {
-                    request.config.deviceSensitiveReadTools &&
-                        currentPermissions().deviceSensitiveReadTools
-                },
-                deviceSensitiveActionToolsEnabled = {
-                    request.config.deviceSensitiveActionTools &&
-                        currentPermissions().deviceSensitiveActionTools
-                },
                 memoryToolsEnabled = {
                     runBlocking { AgentMemoryRepository.isEnabled() }
                 },
                 memoryWritable = roleplayContext == null,
-                beforeToolExecution = { toolName ->
-                    if (!AgentOverlayVisibilityPolicy.requiresEntrySurfaceDismissal(toolName)) {
-                        ToolExecutionDecision.Allow
-                    } else if (entrySurfaceGuard?.dismissOnce() == false) {
-                        ToolExecutionDecision.Reject(
-                            code = "ENTRY_SURFACE_NOT_READY",
-                            message = "入口窗口关闭未完成；本次工具未执行，请勿在当前任务中重复调用",
-                        )
-                    } else {
-                        ToolExecutionDecision.Allow
-                    }
-                },
+                beforeToolExecution = { _ -> ToolExecutionDecision.Allow },
                 skillIndexService = skillIndexService,
                 skillLoader = skillLoader,
                 skillResourceReader = skillResourceReader,
@@ -293,7 +259,6 @@ internal class AgentRuntimeRunExecutor(
                         session,
                         progressEvent,
                         archivedEvents,
-                        entrySurfaceGuard,
                         checkpointRecorder,
                     )
                 },
@@ -447,7 +412,6 @@ internal class AgentRuntimeRunExecutor(
                     session,
                     event,
                     archivedEvents,
-                    entrySurfaceGuard,
                     checkpointRecorder,
                 )
             }
@@ -487,7 +451,6 @@ internal class AgentRuntimeRunExecutor(
                         session,
                         event,
                         archivedEvents,
-                        entrySurfaceGuard,
                         checkpointRecorder,
                     )
                 }.onFailure { checkpointFailure ->
@@ -527,7 +490,6 @@ internal class AgentRuntimeRunExecutor(
             }
             return Outcome(
                 result = result,
-                entrySurfaceGuard = entrySurfaceGuard,
                 shouldUpdateHost = true,
             )
         }
@@ -555,7 +517,6 @@ internal class AgentRuntimeRunExecutor(
         }
         return Outcome(
             result = result,
-            entrySurfaceGuard = entrySurfaceGuard,
             completedRequest = completedRequest.takeIf { committed },
             response = response.takeIf { committed },
             shouldUpdateHost = committed,
@@ -566,7 +527,6 @@ internal class AgentRuntimeRunExecutor(
         session: AgentRuntimeSession,
         event: AgentEvent,
         archivedEvents: MutableList<AgentEvent>?,
-        entrySurfaceGuard: EntrySurfaceGuard?,
         checkpointRecorder: AgentRunCheckpointRecorder?,
     ) {
         checkpointRecorder?.accept(event)
@@ -584,7 +544,7 @@ internal class AgentRuntimeRunExecutor(
         } else if (event !is AgentEvent.AssistantBlockDelta) {
             AndroidAgentLogger.debug { "Agent runtime event: ${event.toLogLine()}" }
         }
-        runCatching { onAcceptedEvent(event, entrySurfaceGuard) }
+        runCatching { onAcceptedEvent(event) }
             .onFailure { throwable ->
                 AndroidAgentLogger.warnThrottled("runtime_event_projection_failed") {
                     "Agent runtime event projection failed: type=${throwable.safeLogType()}"

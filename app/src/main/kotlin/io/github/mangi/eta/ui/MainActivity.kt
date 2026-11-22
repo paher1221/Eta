@@ -15,7 +15,6 @@ import androidx.compose.runtime.setValue
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import io.github.mangi.eta.agent.runtime.AgentRuntimeService
-import io.github.mangi.eta.agent.voice.EtaAssistantOverlayService
 import io.github.mangi.eta.core.AndroidAgentLogger
 import io.github.mangi.eta.data.model.AppearanceThemeMode
 import io.github.mangi.eta.data.repository.AppearanceSettingsRepository
@@ -65,7 +64,6 @@ class MainActivity : ComponentActivity() {
                     onResolvedDarkModeChange = ::updateSystemBars,
                 ) {
                     AgentAppRoot(
-                        assistantConversationKey = launchRequests.assistantConversationKey,
                         requestedConversationId = launchRequests.conversationId,
                         onRequestedConversationOpened = {
                             launchRequests = launchRequests.copy(conversationId = null)
@@ -96,13 +94,6 @@ class MainActivity : ComponentActivity() {
                             launchRequests = launchRequests.copy(speechSettings = false)
                             intent?.action = null
                         },
-                        onAssistantConversationOpened = { opened ->
-                            launchRequests = launchRequests.copy(assistantConversationKey = null)
-                            intent?.action = null
-                            if (opened) {
-                                EtaAssistantOverlayService.notifyHandoffReady(this@MainActivity)
-                            }
-                        },
                     )
                 }
             }
@@ -114,13 +105,11 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         startedInstances.add(this)
         isInForeground = true
-        AgentRuntimeService.onEtaUiVisibilityChanged()
     }
 
     override fun onStop() {
         startedInstances.remove(this)
         isInForeground = startedInstances.isNotEmpty() || isChangingConfigurations
-        AgentRuntimeService.onEtaUiVisibilityChanged()
         super.onStop()
     }
 

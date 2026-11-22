@@ -79,9 +79,6 @@ class AgentRuntimeRunExecutorCompactionTest {
                 systemPrompt = "固定规则",
                 terminalTools = false,
                 browserTools = false,
-                deviceDirectTools = false,
-                deviceSensitiveReadTools = false,
-                deviceSensitiveActionTools = false,
                 subagentTools = true,
                 contextWindow = 128_000,
             )

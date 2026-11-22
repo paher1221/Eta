@@ -60,6 +60,7 @@ jobs:
         uses: ./.github/actions/setup-build
 
       - name: 还原发布证书
+        id: cert
         env:
           ETA_RELEASE_KEYSTORE_BASE64: ${{ secrets.ETA_RELEASE_KEYSTORE_BASE64 }}
           ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
@@ -70,12 +71,19 @@ jobs:
                 -z "$ETA_RELEASE_STORE_PASSWORD" ||
                 -z "$ETA_RELEASE_KEY_ALIAS" ||
                 -z "$ETA_RELEASE_KEY_PASSWORD" ]]; then
-            echo "::error::缺少 Release 签名 Secrets，请检查仓库的 Actions Secrets。"
-            exit 1
+            # 发版标签必须签名；普通手动触发缺 Secrets 时降级为仅构建 Debug
+            if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+              echo "::error::缺少 Release 签名 Secrets，请检查仓库的 Actions Secrets。"
+              exit 1
+            fi
+            echo "::notice::缺少 Release 签名 Secrets，本次仅构建 Debug APK。"
+            echo "has_cert=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           printf '%s' "$ETA_RELEASE_KEYSTORE_BASE64" \
             | base64 --decode \
             > "$RUNNER_TEMP/eta-release.jks"
+          echo "has_cert=true" >> "$GITHUB_OUTPUT"
 
       - name: 构建 Debug 与 Release APK
         env:
@@ -89,8 +97,13 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
             metadata_arg=("-Peta.buildMetadata=${GITHUB_SHA::7}")
           fi
-          ./gradlew --no-daemon --no-configuration-cache "${metadata_arg[@]}" \
-            :app:assembleDebug :app:assembleRelease
+          if [[ "${{ steps.cert.outputs.has_cert }}" == "true" ]]; then
+            ./gradlew --no-daemon --no-configuration-cache "${metadata_arg[@]}" \
+              :app:assembleDebug :app:assembleRelease
+          else
+            ./gradlew --no-daemon --no-configuration-cache "${metadata_arg[@]}" \
+              :app:assembleDebug
+          fi
 
       - name: 验证并整理 APK
         id: apk
@@ -106,28 +119,30 @@ jobs:
             echo "::error::Debug APK 数量异常（${#debug_apks[@]}）。"
             exit 1
           fi
-          if [[ ${#release_apks[@]} -ne 1 ]]; then
-            echo "::error::Release APK 数量异常（${#release_apks[@]}）。"
-            exit 1
-          fi
-          if [[ -z "$apksigner_path" ]]; then
-            echo "::error::未找到 apksigner。"
-            exit 1
-          fi
-
-          "$apksigner_path" verify "${release_apks[0]}"
-
-          # 发版标签必须与 versionName 一致，避免标签与安装包版本错位
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            version_name="$(jq -r '.elements[0].versionName' \
-              app/build/outputs/apk/release/output-metadata.json)"
-            if [[ "$GITHUB_REF_NAME" != "v$version_name" ]]; then
-              echo "::error::标签 $GITHUB_REF_NAME 与 versionName $version_name 不一致。"
+          if [[ "${{ steps.cert.outputs.has_cert }}" == "true" ]]; then
+            if [[ ${#release_apks[@]} -ne 1 ]]; then
+              echo "::error::Release APK 数量异常（${#release_apks[@]}）。"
               exit 1
             fi
+            if [[ -z "$apksigner_path" ]]; then
+              echo "::error::未找到 apksigner。"
+              exit 1
+            fi
+
+            "$apksigner_path" verify "${release_apks[0]}"
+
+            # 发版标签必须与 versionName 一致，避免标签与安装包版本错位
+            if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+              version_name="$(jq -r '.elements[0].versionName' \
+                app/build/outputs/apk/release/output-metadata.json)"
+              if [[ "$GITHUB_REF_NAME" != "v$version_name" ]]; then
+                echo "::error::标签 $GITHUB_REF_NAME 与 versionName $version_name 不一致。"
+                exit 1
+              fi
+            fi
+            echo "release_path=${release_apks[0]}" >> "$GITHUB_OUTPUT"
           fi
           echo "debug_path=${debug_apks[0]}" >> "$GITHUB_OUTPUT"
-          echo "release_path=${release_apks[0]}" >> "$GITHUB_OUTPUT"
 
       - name: 上传 Debug APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -138,6 +153,7 @@ jobs:
           retention-days: 14
 
       - name: 上传 Release APK
+        if: steps.cert.outputs.has_cert == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           path: ${{ steps.apk.outputs.release_path }}

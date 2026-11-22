@@ -1,0 +1,722 @@
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt b/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt
+index ec613dbd..31ebba9e 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt
+@@ -33,6 +33,7 @@ internal object Prefs {
+         const val AGENT_SUBAGENT_ENABLED = "agent_subagent_enabled"
+         const val AGENT_KEEP_SCREEN_ON_ENABLED = "agent_keep_screen_on_enabled"
+         const val AGENT_RUNTIME_CONFIG_JSON = "agent_runtime_config_json"
++        const val AGENT_GLOBAL_SYSTEM_PROMPT = "agent_global_system_prompt"
+         const val AGENT_DISABLED_TOOLS_JSON = "agent_disabled_tools_json"
+ 
+         /** 全部布尔开关及其默认值。 */
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt b/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt
+index c00725ae..55ecdc3c 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt
+@@ -229,7 +229,9 @@ internal object RuntimeConfigRepository {
+         json.encodeToString(if (config.authMode == ProviderAuthModes.API_KEY) config else config.copy(apiKey = ""))
+ 
+     fun buildRuntimeConfig(provider: ProviderSetting, model: Model): AgentModelClient.ModelConfig {
+-        val systemPrompt = provider.systemPrompt.orEmpty().trim()
++        // 全局系统提示词优先；留空时回退服务商级配置，保持既有行为。
++        val globalPrompt = Prefs.getString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT).trim()
++        val systemPrompt = globalPrompt.ifBlank { provider.systemPrompt.orEmpty().trim() }
+         val sourceType = ProviderSourceRegistry.resolve(provider)
+         val profile = ProviderConnectionProfile.forAuthMode(provider.authMode)
+         val endpointMode = profile?.endpointMode ?: provider.endpointMode()
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
+index 8a23a08e..43f30016 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
+@@ -86,6 +86,7 @@ import io.github.mangi.eta.ui.screens.characters.CharacterEditorScreen
+ import io.github.mangi.eta.ui.screens.characters.CharacterLibraryScreen
+ import io.github.mangi.eta.ui.screens.characters.CharacterMemoryScreen
+ import io.github.mangi.eta.ui.screens.characters.CharacterPersonaScreen
++import io.github.mangi.eta.ui.screens.characters.CharacterSystemPromptScreen
+ import io.github.mangi.eta.ui.screens.home.AgentHomeScreen
+ import io.github.mangi.eta.ui.screens.mcp.McpServerDetailScreen
+ import io.github.mangi.eta.ui.screens.mcp.McpServersScreen
+@@ -552,6 +553,11 @@ fun AgentAppRoot(
+                             if (navigator.current() == AppRoute.CharacterPersona) popRoute()
+                         }
+                     }
++                    entry<AppRoute.CharacterSystemPrompt>(swipeDismiss = activeSwipeDismiss) {
++                        CharacterSystemPromptScreen {
++                            if (navigator.current() == AppRoute.CharacterSystemPrompt) popRoute()
++                        }
++                    }
+                     entry<AppRoute.CharacterMemory>(swipeDismiss = activeSwipeDismiss) { route ->
+                         LaunchedEffect(route.characterId, backStack.lastOrNull() == route) {
+                             if (backStack.lastOrNull() == route) characterStore.loadMemory(route.characterId)
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
+index 78e608da..90888bdd 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
+@@ -605,6 +605,7 @@ private fun titleForRoute(route: AppRoute?): String = when (route) {
+     is AppRoute.CharacterDetail -> stringResource(R.string.ui_misc_route_character_detail)
+     is AppRoute.CharacterEditor -> stringResource(R.string.ui_misc_route_character_editor)
+     is AppRoute.CharacterPersona -> stringResource(R.string.ui_misc_route_character_persona)
++    is AppRoute.CharacterSystemPrompt -> stringResource(R.string.character_system_prompt_title)
+     is AppRoute.CharacterMemory -> stringResource(R.string.ui_misc_route_character_memory)
+     is AppRoute.Permissions -> stringResource(R.string.route_permissions)
+     is AppRoute.Settings -> stringResource(R.string.route_settings)
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt
+index 87915284..a4671796 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt
+@@ -60,6 +60,9 @@ sealed interface AppRoute : NavKey {
+     @Serializable
+     data object CharacterPersona : AppRoute
+ 
++    @Serializable
++    data object CharacterSystemPrompt : AppRoute
++
+     @Serializable
+     data class CharacterMemory(val characterId: String) : AppRoute
+ 
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt
+index 7ee80665..e047448b 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt
+@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyListState
+ import androidx.compose.foundation.lazy.rememberLazyListState
+ import androidx.compose.foundation.pager.HorizontalPager
+ import androidx.compose.foundation.pager.rememberPagerState
+-import androidx.compose.foundation.text.input.TextFieldLineLimits
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.DisposableEffect
+ import androidx.compose.runtime.LaunchedEffect
+@@ -64,7 +63,6 @@ import io.github.mangi.eta.ui.components.MiuixScaffoldPage
+ import io.github.mangi.eta.ui.components.StatusError
+ import io.github.mangi.eta.ui.components.StatusSuccess
+ import io.github.mangi.eta.ui.components.coui.CouiPageDefaults
+-import io.github.mangi.eta.ui.components.coui.CouiPreferenceGroup
+ import io.github.mangi.eta.ui.components.currentGlassOverlayBackdrop
+ import io.github.mangi.eta.ui.components.coui.CouiButton
+ import io.github.mangi.eta.ui.components.coui.CouiButtonRole
+@@ -75,8 +73,6 @@ import io.github.mangi.eta.ui.components.coui.CouiScaffold
+ import io.github.mangi.eta.ui.components.coui.CouiScaffoldPage
+ import io.github.mangi.eta.ui.components.coui.CouiSegmentedTabs
+ import io.github.mangi.eta.ui.components.coui.CouiSwitchPreference
+-import io.github.mangi.eta.ui.components.coui.CouiTextField
+-import io.github.mangi.eta.ui.components.rememberDraftTextFieldState
+ import io.github.mangi.eta.ui.layout.horizontalCutoutPadding
+ import io.github.mangi.eta.ui.navigation.NewProviderType
+ import io.github.mangi.eta.ui.components.coui.CouiCardDivider as CouiDivider
+@@ -90,10 +86,8 @@ import top.yukonga.miuix.kmp.basic.BasicComponent
+ import top.yukonga.miuix.kmp.basic.ButtonDefaults
+ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+ import top.yukonga.miuix.kmp.basic.ScrollBehavior
+-import top.yukonga.miuix.kmp.basic.SmallTitle
+ import top.yukonga.miuix.kmp.basic.Text
+ import top.yukonga.miuix.kmp.basic.TextButton
+-import top.yukonga.miuix.kmp.basic.TextField
+ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+ import top.yukonga.miuix.kmp.glass.GlassDialog
+@@ -578,36 +572,7 @@ private fun ProviderConfigTab(
+                     )
+                 }
+             }
+-            if (uiStyle == AppearanceUiStyle.COUI) {
+-                CouiPreferenceGroup(title = stringResource(R.string.ui_system_prompt_word_193981)) {
+-                    item {
+-                        Column(
+-                            modifier = Modifier
+-                                .fillMaxWidth()
+-                                .padding(horizontal = CouiPageDefaults.rowPadding, vertical = 12.dp),
+-                        ) {
+-                            CouiTextField(
+-                                state = rememberDraftTextFieldState(draft.systemPrompt) { onDraftChange(draft.copy(systemPrompt = it)) },
+-                                placeholder = stringResource(R.string.ui_leave_blank_to_use_the_default_mobile_agent_prompt_w_21e7c8),
+-                                singleLine = false,
+-                                minLines = 4,
+-                            )
+-                        }
+-                    }
+-                }
+-            } else {
+-                SmallTitle(text = stringResource(R.string.ui_system_prompt_word_193981))
+-                TextField(
+-                    state = rememberDraftTextFieldState(draft.systemPrompt) { onDraftChange(draft.copy(systemPrompt = it)) },
+-                    lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 4),
+-                    label = stringResource(R.string.ui_leave_blank_to_use_the_default_mobile_agent_prompt_w_21e7c8),
+-                    useLabelAsPlaceholder = true,
+-                    modifier = Modifier
+-                        .fillMaxWidth()
+-                        .padding(horizontal = 12.dp)
+-                        .padding(bottom = 12.dp),
+-                )
+-            }
++            // 系统提示词已移至「角色 → 系统提示词」全局设置，此处不再提供服务商级编辑入口。
+         }
+ 
+         item(key = "actions") {
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt
+index 927fb442..98cb0ec3 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt
+@@ -6,10 +6,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.imePadding
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.unit.dp
+ import io.github.mangi.eta.R
++import io.github.mangi.eta.config.Prefs
+ import io.github.mangi.eta.data.model.AppearanceUiStyle
+ import io.github.mangi.eta.ui.app.CharacterLibraryStore
+ import io.github.mangi.eta.ui.app.LocalUiStyle
+@@ -66,6 +71,60 @@ internal fun CharacterPersonaScreen(store: CharacterLibraryStore, onBack: () ->
+     }
+ }
+ 
++@Composable
++internal fun CharacterSystemPromptScreen(onBack: () -> Unit) {
++    val promptTitle = stringResource(R.string.character_system_prompt_title)
++    val promptHint = stringResource(R.string.character_system_prompt_hint)
++    val promptLabel = stringResource(R.string.character_system_prompt_content_label)
++    val saveLabel = stringResource(R.string.character_system_prompt_save)
++    var draft by remember {
++        mutableStateOf(Prefs.getString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT))
++    }
++    when (LocalUiStyle.current) {
++        AppearanceUiStyle.COUI -> {
++            CouiScaffoldPage(title = promptTitle, onBack = onBack) {
++                CharacterPageMessage(promptHint)
++                CharacterTextField(promptLabel, draft, { draft = it }, true, minLines = 8)
++                CouiButton(
++                    text = saveLabel,
++                    onClick = {
++                        Prefs.localAgentPreferences()?.edit()
++                            ?.putString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT, draft.trim())
++                            ?.apply()
++                        onBack()
++                    },
++                    role = CouiButtonRole.Primary,
++                    modifier = Modifier
++                        .fillMaxWidth()
++                        .padding(horizontal = CouiPageDefaults.horizontalMargin, vertical = 12.dp),
++                )
++                CouiPageBottomSpacer()
++            }
++        }
++        AppearanceUiStyle.MIUIX -> {
++            MiuixScaffoldPage(title = promptTitle, onBack = onBack, modifier = Modifier.imePadding()) {
++                item { CharacterPageMessage(promptHint) }
++                item(key = "prompt") {
++                    CharacterTextField(promptLabel, draft, { draft = it }, true, minLines = 8)
++                }
++                item(key = "save") {
++                    TextButton(
++                        text = saveLabel,
++                        onClick = {
++                            Prefs.localAgentPreferences()?.edit()
++                                ?.putString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT, draft.trim())
++                                ?.apply()
++                            onBack()
++                        },
++                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
++                        colors = ButtonDefaults.textButtonColorsPrimary(),
++                    )
++                }
++            }
++        }
++    }
++}
++
+ @Composable
+ internal fun CharacterMemoryScreen(id: String, store: CharacterLibraryStore, onBack: () -> Unit) {
+     val memoryTitle = stringResource(R.string.character_memory_title)
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt
+index 10fd1a52..76b5c35b 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt
+@@ -87,6 +87,8 @@ internal fun CharacterLibraryScreen(
+     val mineSectionTitle = stringResource(R.string.character_library_section_mine)
+     val personaTitle = stringResource(R.string.character_persona_title)
+     val personaSummary = stringResource(R.string.character_persona_entry_summary)
++    val systemPromptTitle = stringResource(R.string.character_system_prompt_title)
++    val systemPromptSummary = stringResource(R.string.character_system_prompt_entry_summary)
+ 
+     when (LocalUiStyle.current) {
+         AppearanceUiStyle.COUI -> {
+@@ -190,6 +192,13 @@ internal fun CharacterLibraryScreen(
+                                 onClick = { onNavigate(AppRoute.CharacterPersona) },
+                             )
+                         }
++                        item {
++                            CouiPreference(
++                                title = systemPromptTitle,
++                                summary = systemPromptSummary,
++                                onClick = { onNavigate(AppRoute.CharacterSystemPrompt) },
++                            )
++                        }
+                     }
+                 }
+             }
+@@ -320,6 +329,11 @@ internal fun CharacterLibraryScreen(
+                             summary = personaSummary,
+                             onClick = { onNavigate(AppRoute.CharacterPersona) },
+                         )
++                        ArrowPreference(
++                            title = systemPromptTitle,
++                            summary = systemPromptSummary,
++                            onClick = { onNavigate(AppRoute.CharacterSystemPrompt) },
++                        )
+                     }
+                 }
+             }
+diff --git a/app/src/main/res/values-b+zh+Hans/strings_characters.xml b/app/src/main/res/values-b+zh+Hans/strings_characters.xml
+index 0a8aafc6..22b29597 100644
+--- a/app/src/main/res/values-b+zh+Hans/strings_characters.xml
++++ b/app/src/main/res/values-b+zh+Hans/strings_characters.xml
+@@ -183,4 +183,9 @@
+   <string name="character_backup_invalid_rewrite_target">备份中的重新生成目标无效</string>
+ 
+   <string name="character_memory_invalid_id">角色记忆标识无效</string>
++  <string name="character_system_prompt_title">系统提示词</string>
++  <string name="character_system_prompt_entry_summary">对所有模型和对话生效的全局指令</string>
++  <string name="character_system_prompt_hint">在这里设置全局系统提示词，换任何模型都会生效；留空则使用各服务商自己的提示词。使用角色卡时，会改用角色卡的提示词。</string>
++  <string name="character_system_prompt_content_label">系统提示词</string>
++  <string name="character_system_prompt_save">保存提示词</string>
+ </resources>
+diff --git a/app/src/main/res/values-b+zh+Hant/strings_characters.xml b/app/src/main/res/values-b+zh+Hant/strings_characters.xml
+index 70039723..3fcd40f9 100644
+--- a/app/src/main/res/values-b+zh+Hant/strings_characters.xml
++++ b/app/src/main/res/values-b+zh+Hant/strings_characters.xml
+@@ -183,4 +183,9 @@
+   <string name="character_backup_invalid_rewrite_target">備份中的重新產生目標無效</string>
+ 
+   <string name="character_memory_invalid_id">角色記憶識別無效</string>
++  <string name="character_system_prompt_title">系統提示詞</string>
++  <string name="character_system_prompt_entry_summary">對所有模型和對話生效的全局指令</string>
++  <string name="character_system_prompt_hint">在這裡設置全局系統提示詞，換任何模型都會生效；留空則使用各服務商自己的提示詞。使用角色卡時，會改用角色卡的提示詞。</string>
++  <string name="character_system_prompt_content_label">系統提示詞</string>
++  <string name="character_system_prompt_save">保存提示詞</string>
+ </resources>
+diff --git a/app/src/main/res/values/strings_characters.xml b/app/src/main/res/values/strings_characters.xml
+index 3a614aff..2ade0591 100644
+--- a/app/src/main/res/values/strings_characters.xml
++++ b/app/src/main/res/values/strings_characters.xml
+@@ -185,4 +185,9 @@
+   <string name="character_backup_invalid_rewrite_target">Invalid regeneration target in backup</string>
+ 
+   <string name="character_memory_invalid_id">Invalid character memory ID</string>
++  <string name="character_system_prompt_title">System prompt</string>
++  <string name="character_system_prompt_entry_summary">Global instructions applied to every model and conversation</string>
++  <string name="character_system_prompt_hint">Set the global system prompt here. It applies to all models; leave blank to use each provider\'s own prompt. When using a character card, its prompt is used instead.</string>
++  <string name="character_system_prompt_content_label">System prompt</string>
++  <string name="character_system_prompt_save">Save prompt</string>
+ </resources>
+diff --git a/docs/patches/.nfs000000000a1efd5d003b2106 b/docs/patches/.nfs000000000a1efd5d003b2106
+new file mode 100644
+index 00000000..bdf49cff
+--- /dev/null
++++ b/docs/patches/.nfs000000000a1efd5d003b2106
+@@ -0,0 +1,35 @@
++# 全局系统提示词（角色模块）
++
++把系统提示词从「模型服务商详情页」移到「角色」模块下，作为全局设置：换任何模型/服务商都生效。
++
++- 补丁文件：`docs/patches/global-system-prompt.patch`（基于 `3a24d81d` 之后的代码）
++- 落地提交：`081e9699`（功能）+ `c87b2164`（修复英文文案撇号转义）
++
++## 上游更新后如何重打
++
++1. 合并上游后，先确认下列文件是否被上游改动；有冲突时以补丁意图为准手工合并。
++2. 或直接尝试：`git apply docs/patches/global-system-prompt.patch`（冲突时改用 `--3way`）。
++
++## 改动要点（手工重打时的核对清单）
++
++1. `config/Prefs.kt`：新增键 `AGENT_GLOBAL_SYSTEM_PROMPT = "agent_global_system_prompt"`。
++2. `data/repository/RuntimeConfigRepository.kt` 的 `buildRuntimeConfig`：
++   ```kotlin
++   val globalPrompt = Prefs.getString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT).trim()
++   val systemPrompt = globalPrompt.ifBlank { provider.systemPrompt.orEmpty().trim() }
++   ```
++   全局提示词优先；留空回退服务商级配置（`ProviderSetting.systemPrompt` 数据字段保留，兼容旧数据）。
++3. `ui/navigation/AppRoute.kt`：新增 `data object CharacterSystemPrompt : AppRoute`。
++4. `ui/screens/characters/CharacterContextScreens.kt`：新增 `CharacterSystemPromptScreen`（直接读写 Prefs，COUI / MIUIX 双风格）。
++5. `ui/screens/characters/CharacterLibraryScreen.kt`：在「我的」分组（人设入口旁）加入口，两种 UI 风格都要加。
++6. `ui/app/AgentAppRoot.kt`：注册 `entry<AppRoute.CharacterSystemPrompt>` 并导入新页面。
++7. `ui/app/AgentAppShell.kt`：路由标题映射到 `R.string.character_system_prompt_title`。
++8. `ui/pages/providers/ModelProviderDetailScreen.kt`：删除「偏好与策略」分组下的系统提示词编辑块（COUI 与 MIUIX 两个分支），并清理未用导入（`CouiTextField`、`rememberDraftTextFieldState`、`TextFieldLineLimits`、`SmallTitle`、`CouiPreferenceGroup`、`TextField`）。
++9. 字符串资源（values / values-b+zh+Hans / values-b+zh+Hant 的 `strings_characters.xml`）：
++   - `character_system_prompt_title` / `_entry_summary` / `_hint` / `_content_label` / `_save`
++
++## 踩坑记录
++
++- 英文 `character_system_prompt_hint` 含撇号必须转义（`provider\'s`），否则资源合并失败。
++- 角色卡提示词优先级高于全局提示词：`AgentPromptBuilder.buildInitialMessages` 中 `roleplayContext != null` 时不使用 `config.systemPrompt`，此逻辑保持不动。
++- `android-release.yml` 只在 push 到 `main` 或 `v*` 标签时触发；`my-version` 分支需手动 workflow_dispatch。
+diff --git a/docs/patches/GLOBAL_SYSTEM_PROMPT.md b/docs/patches/GLOBAL_SYSTEM_PROMPT.md
+new file mode 100644
+index 00000000..bdf49cff
+--- /dev/null
++++ b/docs/patches/GLOBAL_SYSTEM_PROMPT.md
+@@ -0,0 +1,35 @@
++# 全局系统提示词（角色模块）
++
++把系统提示词从「模型服务商详情页」移到「角色」模块下，作为全局设置：换任何模型/服务商都生效。
++
++- 补丁文件：`docs/patches/global-system-prompt.patch`（基于 `3a24d81d` 之后的代码）
++- 落地提交：`081e9699`（功能）+ `c87b2164`（修复英文文案撇号转义）
++
++## 上游更新后如何重打
++
++1. 合并上游后，先确认下列文件是否被上游改动；有冲突时以补丁意图为准手工合并。
++2. 或直接尝试：`git apply docs/patches/global-system-prompt.patch`（冲突时改用 `--3way`）。
++
++## 改动要点（手工重打时的核对清单）
++
++1. `config/Prefs.kt`：新增键 `AGENT_GLOBAL_SYSTEM_PROMPT = "agent_global_system_prompt"`。
++2. `data/repository/RuntimeConfigRepository.kt` 的 `buildRuntimeConfig`：
++   ```kotlin
++   val globalPrompt = Prefs.getString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT).trim()
++   val systemPrompt = globalPrompt.ifBlank { provider.systemPrompt.orEmpty().trim() }
++   ```
++   全局提示词优先；留空回退服务商级配置（`ProviderSetting.systemPrompt` 数据字段保留，兼容旧数据）。
++3. `ui/navigation/AppRoute.kt`：新增 `data object CharacterSystemPrompt : AppRoute`。
++4. `ui/screens/characters/CharacterContextScreens.kt`：新增 `CharacterSystemPromptScreen`（直接读写 Prefs，COUI / MIUIX 双风格）。
++5. `ui/screens/characters/CharacterLibraryScreen.kt`：在「我的」分组（人设入口旁）加入口，两种 UI 风格都要加。
++6. `ui/app/AgentAppRoot.kt`：注册 `entry<AppRoute.CharacterSystemPrompt>` 并导入新页面。
++7. `ui/app/AgentAppShell.kt`：路由标题映射到 `R.string.character_system_prompt_title`。
++8. `ui/pages/providers/ModelProviderDetailScreen.kt`：删除「偏好与策略」分组下的系统提示词编辑块（COUI 与 MIUIX 两个分支），并清理未用导入（`CouiTextField`、`rememberDraftTextFieldState`、`TextFieldLineLimits`、`SmallTitle`、`CouiPreferenceGroup`、`TextField`）。
++9. 字符串资源（values / values-b+zh+Hans / values-b+zh+Hant 的 `strings_characters.xml`）：
++   - `character_system_prompt_title` / `_entry_summary` / `_hint` / `_content_label` / `_save`
++
++## 踩坑记录
++
++- 英文 `character_system_prompt_hint` 含撇号必须转义（`provider\'s`），否则资源合并失败。
++- 角色卡提示词优先级高于全局提示词：`AgentPromptBuilder.buildInitialMessages` 中 `roleplayContext != null` 时不使用 `config.systemPrompt`，此逻辑保持不动。
++- `android-release.yml` 只在 push 到 `main` 或 `v*` 标签时触发；`my-version` 分支需手动 workflow_dispatch。
+diff --git a/docs/patches/global-system-prompt.patch b/docs/patches/global-system-prompt.patch
+new file mode 100644
+index 00000000..60c612db
+--- /dev/null
++++ b/docs/patches/global-system-prompt.patch
+@@ -0,0 +1,317 @@
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt b/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt
++index ec613dbd..31ebba9e 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/config/Prefs.kt
++@@ -33,6 +33,7 @@ internal object Prefs {
++         const val AGENT_SUBAGENT_ENABLED = "agent_subagent_enabled"
++         const val AGENT_KEEP_SCREEN_ON_ENABLED = "agent_keep_screen_on_enabled"
++         const val AGENT_RUNTIME_CONFIG_JSON = "agent_runtime_config_json"
+++        const val AGENT_GLOBAL_SYSTEM_PROMPT = "agent_global_system_prompt"
++         const val AGENT_DISABLED_TOOLS_JSON = "agent_disabled_tools_json"
++ 
++         /** 全部布尔开关及其默认值。 */
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt b/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt
++index c00725ae..55ecdc3c 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/data/repository/RuntimeConfigRepository.kt
++@@ -229,7 +229,9 @@ internal object RuntimeConfigRepository {
++         json.encodeToString(if (config.authMode == ProviderAuthModes.API_KEY) config else config.copy(apiKey = ""))
++ 
++     fun buildRuntimeConfig(provider: ProviderSetting, model: Model): AgentModelClient.ModelConfig {
++-        val systemPrompt = provider.systemPrompt.orEmpty().trim()
+++        // 全局系统提示词优先；留空时回退服务商级配置，保持既有行为。
+++        val globalPrompt = Prefs.getString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT).trim()
+++        val systemPrompt = globalPrompt.ifBlank { provider.systemPrompt.orEmpty().trim() }
++         val sourceType = ProviderSourceRegistry.resolve(provider)
++         val profile = ProviderConnectionProfile.forAuthMode(provider.authMode)
++         val endpointMode = profile?.endpointMode ?: provider.endpointMode()
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
++index 8a23a08e..43f30016 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppRoot.kt
++@@ -86,6 +86,7 @@ import io.github.mangi.eta.ui.screens.characters.CharacterEditorScreen
++ import io.github.mangi.eta.ui.screens.characters.CharacterLibraryScreen
++ import io.github.mangi.eta.ui.screens.characters.CharacterMemoryScreen
++ import io.github.mangi.eta.ui.screens.characters.CharacterPersonaScreen
+++import io.github.mangi.eta.ui.screens.characters.CharacterSystemPromptScreen
++ import io.github.mangi.eta.ui.screens.home.AgentHomeScreen
++ import io.github.mangi.eta.ui.screens.mcp.McpServerDetailScreen
++ import io.github.mangi.eta.ui.screens.mcp.McpServersScreen
++@@ -552,6 +553,11 @@ fun AgentAppRoot(
++                             if (navigator.current() == AppRoute.CharacterPersona) popRoute()
++                         }
++                     }
+++                    entry<AppRoute.CharacterSystemPrompt>(swipeDismiss = activeSwipeDismiss) {
+++                        CharacterSystemPromptScreen {
+++                            if (navigator.current() == AppRoute.CharacterSystemPrompt) popRoute()
+++                        }
+++                    }
++                     entry<AppRoute.CharacterMemory>(swipeDismiss = activeSwipeDismiss) { route ->
++                         LaunchedEffect(route.characterId, backStack.lastOrNull() == route) {
++                             if (backStack.lastOrNull() == route) characterStore.loadMemory(route.characterId)
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
++index 78e608da..90888bdd 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/app/AgentAppShell.kt
++@@ -605,6 +605,7 @@ private fun titleForRoute(route: AppRoute?): String = when (route) {
++     is AppRoute.CharacterDetail -> stringResource(R.string.ui_misc_route_character_detail)
++     is AppRoute.CharacterEditor -> stringResource(R.string.ui_misc_route_character_editor)
++     is AppRoute.CharacterPersona -> stringResource(R.string.ui_misc_route_character_persona)
+++    is AppRoute.CharacterSystemPrompt -> stringResource(R.string.character_system_prompt_title)
++     is AppRoute.CharacterMemory -> stringResource(R.string.ui_misc_route_character_memory)
++     is AppRoute.Permissions -> stringResource(R.string.route_permissions)
++     is AppRoute.Settings -> stringResource(R.string.route_settings)
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt
++index 87915284..a4671796 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/navigation/AppRoute.kt
++@@ -60,6 +60,9 @@ sealed interface AppRoute : NavKey {
++     @Serializable
++     data object CharacterPersona : AppRoute
++ 
+++    @Serializable
+++    data object CharacterSystemPrompt : AppRoute
+++
++     @Serializable
++     data class CharacterMemory(val characterId: String) : AppRoute
++ 
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt
++index 7ee80665..e047448b 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/pages/providers/ModelProviderDetailScreen.kt
++@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyListState
++ import androidx.compose.foundation.lazy.rememberLazyListState
++ import androidx.compose.foundation.pager.HorizontalPager
++ import androidx.compose.foundation.pager.rememberPagerState
++-import androidx.compose.foundation.text.input.TextFieldLineLimits
++ import androidx.compose.runtime.Composable
++ import androidx.compose.runtime.DisposableEffect
++ import androidx.compose.runtime.LaunchedEffect
++@@ -64,7 +63,6 @@ import io.github.mangi.eta.ui.components.MiuixScaffoldPage
++ import io.github.mangi.eta.ui.components.StatusError
++ import io.github.mangi.eta.ui.components.StatusSuccess
++ import io.github.mangi.eta.ui.components.coui.CouiPageDefaults
++-import io.github.mangi.eta.ui.components.coui.CouiPreferenceGroup
++ import io.github.mangi.eta.ui.components.currentGlassOverlayBackdrop
++ import io.github.mangi.eta.ui.components.coui.CouiButton
++ import io.github.mangi.eta.ui.components.coui.CouiButtonRole
++@@ -75,8 +73,6 @@ import io.github.mangi.eta.ui.components.coui.CouiScaffold
++ import io.github.mangi.eta.ui.components.coui.CouiScaffoldPage
++ import io.github.mangi.eta.ui.components.coui.CouiSegmentedTabs
++ import io.github.mangi.eta.ui.components.coui.CouiSwitchPreference
++-import io.github.mangi.eta.ui.components.coui.CouiTextField
++-import io.github.mangi.eta.ui.components.rememberDraftTextFieldState
++ import io.github.mangi.eta.ui.layout.horizontalCutoutPadding
++ import io.github.mangi.eta.ui.navigation.NewProviderType
++ import io.github.mangi.eta.ui.components.coui.CouiCardDivider as CouiDivider
++@@ -90,10 +86,8 @@ import top.yukonga.miuix.kmp.basic.BasicComponent
++ import top.yukonga.miuix.kmp.basic.ButtonDefaults
++ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
++ import top.yukonga.miuix.kmp.basic.ScrollBehavior
++-import top.yukonga.miuix.kmp.basic.SmallTitle
++ import top.yukonga.miuix.kmp.basic.Text
++ import top.yukonga.miuix.kmp.basic.TextButton
++-import top.yukonga.miuix.kmp.basic.TextField
++ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
++ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
++ import top.yukonga.miuix.kmp.glass.GlassDialog
++@@ -578,36 +572,7 @@ private fun ProviderConfigTab(
++                     )
++                 }
++             }
++-            if (uiStyle == AppearanceUiStyle.COUI) {
++-                CouiPreferenceGroup(title = stringResource(R.string.ui_system_prompt_word_193981)) {
++-                    item {
++-                        Column(
++-                            modifier = Modifier
++-                                .fillMaxWidth()
++-                                .padding(horizontal = CouiPageDefaults.rowPadding, vertical = 12.dp),
++-                        ) {
++-                            CouiTextField(
++-                                state = rememberDraftTextFieldState(draft.systemPrompt) { onDraftChange(draft.copy(systemPrompt = it)) },
++-                                placeholder = stringResource(R.string.ui_leave_blank_to_use_the_default_mobile_agent_prompt_w_21e7c8),
++-                                singleLine = false,
++-                                minLines = 4,
++-                            )
++-                        }
++-                    }
++-                }
++-            } else {
++-                SmallTitle(text = stringResource(R.string.ui_system_prompt_word_193981))
++-                TextField(
++-                    state = rememberDraftTextFieldState(draft.systemPrompt) { onDraftChange(draft.copy(systemPrompt = it)) },
++-                    lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 4),
++-                    label = stringResource(R.string.ui_leave_blank_to_use_the_default_mobile_agent_prompt_w_21e7c8),
++-                    useLabelAsPlaceholder = true,
++-                    modifier = Modifier
++-                        .fillMaxWidth()
++-                        .padding(horizontal = 12.dp)
++-                        .padding(bottom = 12.dp),
++-                )
++-            }
+++            // 系统提示词已移至「角色 → 系统提示词」全局设置，此处不再提供服务商级编辑入口。
++         }
++ 
++         item(key = "actions") {
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt
++index 927fb442..98cb0ec3 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterContextScreens.kt
++@@ -6,10 +6,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
++ import androidx.compose.foundation.layout.imePadding
++ import androidx.compose.foundation.layout.padding
++ import androidx.compose.runtime.Composable
+++import androidx.compose.runtime.getValue
+++import androidx.compose.runtime.mutableStateOf
+++import androidx.compose.runtime.remember
+++import androidx.compose.runtime.setValue
++ import androidx.compose.ui.Modifier
++ import androidx.compose.ui.res.stringResource
++ import androidx.compose.ui.unit.dp
++ import io.github.mangi.eta.R
+++import io.github.mangi.eta.config.Prefs
++ import io.github.mangi.eta.data.model.AppearanceUiStyle
++ import io.github.mangi.eta.ui.app.CharacterLibraryStore
++ import io.github.mangi.eta.ui.app.LocalUiStyle
++@@ -66,6 +71,60 @@ internal fun CharacterPersonaScreen(store: CharacterLibraryStore, onBack: () ->
++     }
++ }
++ 
+++@Composable
+++internal fun CharacterSystemPromptScreen(onBack: () -> Unit) {
+++    val promptTitle = stringResource(R.string.character_system_prompt_title)
+++    val promptHint = stringResource(R.string.character_system_prompt_hint)
+++    val promptLabel = stringResource(R.string.character_system_prompt_content_label)
+++    val saveLabel = stringResource(R.string.character_system_prompt_save)
+++    var draft by remember {
+++        mutableStateOf(Prefs.getString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT))
+++    }
+++    when (LocalUiStyle.current) {
+++        AppearanceUiStyle.COUI -> {
+++            CouiScaffoldPage(title = promptTitle, onBack = onBack) {
+++                CharacterPageMessage(promptHint)
+++                CharacterTextField(promptLabel, draft, { draft = it }, true, minLines = 8)
+++                CouiButton(
+++                    text = saveLabel,
+++                    onClick = {
+++                        Prefs.localAgentPreferences()?.edit()
+++                            ?.putString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT, draft.trim())
+++                            ?.apply()
+++                        onBack()
+++                    },
+++                    role = CouiButtonRole.Primary,
+++                    modifier = Modifier
+++                        .fillMaxWidth()
+++                        .padding(horizontal = CouiPageDefaults.horizontalMargin, vertical = 12.dp),
+++                )
+++                CouiPageBottomSpacer()
+++            }
+++        }
+++        AppearanceUiStyle.MIUIX -> {
+++            MiuixScaffoldPage(title = promptTitle, onBack = onBack, modifier = Modifier.imePadding()) {
+++                item { CharacterPageMessage(promptHint) }
+++                item(key = "prompt") {
+++                    CharacterTextField(promptLabel, draft, { draft = it }, true, minLines = 8)
+++                }
+++                item(key = "save") {
+++                    TextButton(
+++                        text = saveLabel,
+++                        onClick = {
+++                            Prefs.localAgentPreferences()?.edit()
+++                                ?.putString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT, draft.trim())
+++                                ?.apply()
+++                            onBack()
+++                        },
+++                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+++                        colors = ButtonDefaults.textButtonColorsPrimary(),
+++                    )
+++                }
+++            }
+++        }
+++    }
+++}
+++
++ @Composable
++ internal fun CharacterMemoryScreen(id: String, store: CharacterLibraryStore, onBack: () -> Unit) {
++     val memoryTitle = stringResource(R.string.character_memory_title)
++diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt
++index 10fd1a52..76b5c35b 100644
++--- a/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt
+++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/screens/characters/CharacterLibraryScreen.kt
++@@ -87,6 +87,8 @@ internal fun CharacterLibraryScreen(
++     val mineSectionTitle = stringResource(R.string.character_library_section_mine)
++     val personaTitle = stringResource(R.string.character_persona_title)
++     val personaSummary = stringResource(R.string.character_persona_entry_summary)
+++    val systemPromptTitle = stringResource(R.string.character_system_prompt_title)
+++    val systemPromptSummary = stringResource(R.string.character_system_prompt_entry_summary)
++ 
++     when (LocalUiStyle.current) {
++         AppearanceUiStyle.COUI -> {
++@@ -190,6 +192,13 @@ internal fun CharacterLibraryScreen(
++                                 onClick = { onNavigate(AppRoute.CharacterPersona) },
++                             )
++                         }
+++                        item {
+++                            CouiPreference(
+++                                title = systemPromptTitle,
+++                                summary = systemPromptSummary,
+++                                onClick = { onNavigate(AppRoute.CharacterSystemPrompt) },
+++                            )
+++                        }
++                     }
++                 }
++             }
++@@ -320,6 +329,11 @@ internal fun CharacterLibraryScreen(
++                             summary = personaSummary,
++                             onClick = { onNavigate(AppRoute.CharacterPersona) },
++                         )
+++                        ArrowPreference(
+++                            title = systemPromptTitle,
+++                            summary = systemPromptSummary,
+++                            onClick = { onNavigate(AppRoute.CharacterSystemPrompt) },
+++                        )
++                     }
++                 }
++             }
++diff --git a/app/src/main/res/values-b+zh+Hans/strings_characters.xml b/app/src/main/res/values-b+zh+Hans/strings_characters.xml
++index 0a8aafc6..22b29597 100644
++--- a/app/src/main/res/values-b+zh+Hans/strings_characters.xml
+++++ b/app/src/main/res/values-b+zh+Hans/strings_characters.xml
++@@ -183,4 +183,9 @@
++   <string name="character_backup_invalid_rewrite_target">备份中的重新生成目标无效</string>
++ 
++   <string name="character_memory_invalid_id">角色记忆标识无效</string>
+++  <string name="character_system_prompt_title">系统提示词</string>
+++  <string name="character_system_prompt_entry_summary">对所有模型和对话生效的全局指令</string>
+++  <string name="character_system_prompt_hint">在这里设置全局系统提示词，换任何模型都会生效；留空则使用各服务商自己的提示词。使用角色卡时，会改用角色卡的提示词。</string>
+++  <string name="character_system_prompt_content_label">系统提示词</string>
+++  <string name="character_system_prompt_save">保存提示词</string>
++ </resources>
++diff --git a/app/src/main/res/values-b+zh+Hant/strings_characters.xml b/app/src/main/res/values-b+zh+Hant/strings_characters.xml
++index 70039723..3fcd40f9 100644
++--- a/app/src/main/res/values-b+zh+Hant/strings_characters.xml
+++++ b/app/src/main/res/values-b+zh+Hant/strings_characters.xml
++@@ -183,4 +183,9 @@
++   <string name="character_backup_invalid_rewrite_target">備份中的重新產生目標無效</string>
++ 
++   <string name="character_memory_invalid_id">角色記憶識別無效</string>
+++  <string name="character_system_prompt_title">系統提示詞</string>
+++  <string name="character_system_prompt_entry_summary">對所有模型和對話生效的全局指令</string>
+++  <string name="character_system_prompt_hint">在這裡設置全局系統提示詞，換任何模型都會生效；留空則使用各服務商自己的提示詞。使用角色卡時，會改用角色卡的提示詞。</string>
+++  <string name="character_system_prompt_content_label">系統提示詞</string>
+++  <string name="character_system_prompt_save">保存提示詞</string>
++ </resources>
++diff --git a/app/src/main/res/values/strings_characters.xml b/app/src/main/res/values/strings_characters.xml
++index 3a614aff..2ade0591 100644
++--- a/app/src/main/res/values/strings_characters.xml
+++++ b/app/src/main/res/values/strings_characters.xml
++@@ -185,4 +185,9 @@
++   <string name="character_backup_invalid_rewrite_target">Invalid regeneration target in backup</string>
++ 
++   <string name="character_memory_invalid_id">Invalid character memory ID</string>
+++  <string name="character_system_prompt_title">System prompt</string>
+++  <string name="character_system_prompt_entry_summary">Global instructions applied to every model and conversation</string>
+++  <string name="character_system_prompt_hint">Set the global system prompt here. It applies to all models; leave blank to use each provider\'s own prompt. When using a character card, its prompt is used instead.</string>
+++  <string name="character_system_prompt_content_label">System prompt</string>
+++  <string name="character_system_prompt_save">Save prompt</string>
++ </resources>

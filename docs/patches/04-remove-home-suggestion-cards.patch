@@ -1,0 +1,20 @@
+diff --git a/app/src/main/kotlin/io/github/mangi/eta/ui/components/AgentChatBody.kt b/app/src/main/kotlin/io/github/mangi/eta/ui/components/AgentChatBody.kt
+index 598eda58..1f690c84 100644
+--- a/app/src/main/kotlin/io/github/mangi/eta/ui/components/AgentChatBody.kt
++++ b/app/src/main/kotlin/io/github/mangi/eta/ui/components/AgentChatBody.kt
+@@ -58,7 +58,6 @@ import androidx.compose.ui.graphics.luminance
+ import androidx.compose.ui.graphics.shadow.Shadow
+ import androidx.compose.ui.input.nestedscroll.nestedScroll
+ import androidx.compose.ui.platform.LocalDensity
+-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.unit.Dp
+@@ -212,7 +211,6 @@ internal fun AgentChatBody(
+     }
+     var sentFromKeyboard by remember { mutableStateOf(false) }
+     var keepBottomAnchored by rememberSaveable { mutableStateOf(true) }
+-    val keyboard = LocalSoftwareKeyboardController.current
+ 
+     LaunchedEffect(isStreaming) {
+         if (isStreaming && sentFromKeyboard) {

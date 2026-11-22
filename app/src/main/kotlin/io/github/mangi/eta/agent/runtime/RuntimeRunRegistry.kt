@@ -1,6 +1,7 @@
 package io.github.mangi.eta.agent.runtime
 
 import io.github.mangi.eta.agent.model.AgentModelClient
+import io.github.mangi.eta.agent.overlay.AgentOverlayStatus
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.CountDownLatch
 

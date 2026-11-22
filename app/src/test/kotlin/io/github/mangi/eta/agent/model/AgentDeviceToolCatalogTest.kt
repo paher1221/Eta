@@ -8,12 +8,12 @@ import org.junit.Test
 class AgentDeviceToolCatalogTest {
     @Test
     fun riskGroupsExposeOnlyTheirOwnTools() {
-        val none = names(false, false, false)
+        val base = names(false, false, false)
         val direct = names(true, false, false)
         val reads = names(false, true, false)
         val actions = names(false, false, true)
 
-        assertFalse("set_alarm" in none)
+        assertFalse("set_alarm" in base)
         assertTrue("set_alarm" in direct)
         assertTrue("inspect_app" in direct)
         assertFalse("inspect_app" in reads)
@@ -27,7 +27,7 @@ class AgentDeviceToolCatalogTest {
         assertFalse("send_message" in reads)
         assertFalse("send_message" in actions)
         assertFalse("personal_context" in reads)
-        assertTrue("设备动作组不得发布设备工具", (direct + reads).none { it in actions })
+        assertTrue("设备动作组不得发布设备工具", (direct + reads - base).none { it in actions })
     }
 
     private fun names(

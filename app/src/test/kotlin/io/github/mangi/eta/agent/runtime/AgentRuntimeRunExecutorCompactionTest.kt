@@ -104,7 +104,7 @@ class AgentRuntimeRunExecutorCompactionTest {
                 },
                 snapshotRequest = { it },
                 guiControl = GuiControlCoordinator(),
-                onAcceptedEvent = { _, _ -> },
+                onAcceptedEvent = { _ -> },
                 persistArtifacts = { _, _, _ -> },
             )
 

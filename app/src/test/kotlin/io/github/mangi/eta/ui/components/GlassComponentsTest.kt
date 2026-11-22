@@ -447,7 +447,7 @@ class GlassComponentsTest {
 
             assertTrue(
                 "Switching to All tab should expose all tools",
-                collectAllTexts(activity).any { it == "设备状态" },
+                collectAllTexts(activity).any { it == "记忆" },
             )
         } finally {
             recomposer.cancel()

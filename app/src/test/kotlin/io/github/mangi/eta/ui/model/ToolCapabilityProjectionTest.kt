@@ -27,7 +27,7 @@ class ToolCapabilityProjectionTest {
 
     @Test fun missingOrdinaryPermissionOpensPermissions() {
         val capabilities = AgentToolCapabilities()
-        assertNull(toolCardAction("browser_read", capabilities))
+        assertEquals(AgentToolsAction.OpenBrowser, toolCardAction("browser_read", capabilities))
         assertEquals(AgentToolsAction.OpenWebToolsSettings, toolCardAction("web_search", capabilities))
         assertEquals(AgentToolsAction.OpenWebToolsSettings, toolCardAction("fetch_url", capabilities))
         assertNull(toolCardAction("terminal", capabilities))

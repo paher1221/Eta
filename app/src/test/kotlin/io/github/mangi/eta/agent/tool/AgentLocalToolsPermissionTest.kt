@@ -141,7 +141,7 @@ class AgentLocalToolsPermissionTest {
         val result = tools.execute(
             AgentModelClient.ToolCall(
                 id = "call-1",
-                name = "memory_get",
+                name = "set_clipboard",
                 argumentsJson = "{}",
             ),
         )
@@ -164,7 +164,7 @@ class AgentLocalToolsPermissionTest {
         val result = tools.execute(
             AgentModelClient.ToolCall(
                 id = "call-1",
-                name = "memory_get",
+                name = "set_clipboard",
                 argumentsJson = "{}",
             ),
         )

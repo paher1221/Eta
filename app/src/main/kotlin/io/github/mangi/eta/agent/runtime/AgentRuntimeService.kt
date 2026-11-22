@@ -809,6 +809,8 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         } else {
             targetRun?.status
         }
+        // 归属运行仍在进行时，用户正在应用内查看该会话，抑制 Live Update 通知
+        val guiRunActive = owner != null && !owner.session.isTerminal
         val handoff = targetRun?.request?.handoff
         val conversationId = handoff
             ?.takeIf { it.source == AgentRuntimeWire.AGENT_UI_HANDOFF_SOURCE }
@@ -825,7 +827,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
             archivedSource = archive?.first.orEmpty(),
             archivedKey = archive?.second.orEmpty(),
             startedAtEpochMs = targetRun?.startedAtEpochMs ?: 0L,
-            suppressLiveUpdate = allActiveRunsSilent,
+            suppressLiveUpdate = guiRunActive || allActiveRunsSilent,
         )
     }
 

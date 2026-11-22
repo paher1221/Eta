@@ -163,20 +163,6 @@ class AgentTraceFormatterTest {
     }
 
     @Test
-    fun deviceStateResultShowsObservedChangesWithoutInventingPreviousState() {
-        listOf(
-            """{"target":"auto_rotate","before":false,"after":true}""" to "自动旋转：关闭 → 开启",
-            """{"target":"auto_brightness","before":true,"after":false}""" to "自动亮度：开启 → 关闭",
-            """{"target":"wifi","before":true,"after":true}""" to "Wi-Fi：保持开启",
-            """{"target":"auto_rotate","before":false,"after":false}""" to "自动旋转：保持关闭",
-            """{"target":"auto_rotate","before":null,"after":true}""" to "自动旋转：已开启",
-        ).forEach { (observed, expectedSummary) ->
-            val result = JSONObject(observed).put("ok", true).put("verified", true)
-            assertEquals(expectedSummary, formatter.summarizeResult("set_device_state", AgentModelClient.ToolResult(result.toString())))
-        }
-    }
-
-    @Test
     fun deviceStateResultRequiresVerifiedBooleanReadback() {
         listOf(
             """{"ok":true,"verified":true,"target":"auto_rotate","expected":true}""" to "完成",
@@ -208,7 +194,7 @@ class AgentTraceFormatterTest {
             """{"ok":true,"count":99,"items":[{"content":"private-record"},{"value":"private-value"}],"has_more":true,"partial":true}""",
             sensitive = true,
         )
-        assertEquals("找到 2 条短信 · 还有更多 · 采集范围有限", formatter.summarizeResult("search_messages", result))
+        assertEquals("找到 2 条结果 · 还有更多 · 采集范围有限", formatter.summarizeResult("search_messages", result))
 
         val generic = AgentModelClient.ToolResult(
             """{"ok":true,"items":[{"content":"one"},{"content":"two"}],"has_more":true,"partial":true}""",

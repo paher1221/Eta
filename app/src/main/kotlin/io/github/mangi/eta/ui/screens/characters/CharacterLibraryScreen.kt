@@ -87,6 +87,8 @@ internal fun CharacterLibraryScreen(
     val mineSectionTitle = stringResource(R.string.character_library_section_mine)
     val personaTitle = stringResource(R.string.character_persona_title)
     val personaSummary = stringResource(R.string.character_persona_entry_summary)
+    val systemPromptTitle = stringResource(R.string.character_system_prompt_title)
+    val systemPromptSummary = stringResource(R.string.character_system_prompt_entry_summary)
 
     when (LocalUiStyle.current) {
         AppearanceUiStyle.COUI -> {
@@ -188,6 +190,13 @@ internal fun CharacterLibraryScreen(
                                 title = personaTitle,
                                 summary = personaSummary,
                                 onClick = { onNavigate(AppRoute.CharacterPersona) },
+                            )
+                        }
+                        item {
+                            CouiPreference(
+                                title = systemPromptTitle,
+                                summary = systemPromptSummary,
+                                onClick = { onNavigate(AppRoute.CharacterSystemPrompt) },
                             )
                         }
                     }
@@ -319,6 +328,11 @@ internal fun CharacterLibraryScreen(
                             title = personaTitle,
                             summary = personaSummary,
                             onClick = { onNavigate(AppRoute.CharacterPersona) },
+                        )
+                        ArrowPreference(
+                            title = systemPromptTitle,
+                            summary = systemPromptSummary,
+                            onClick = { onNavigate(AppRoute.CharacterSystemPrompt) },
                         )
                     }
                 }

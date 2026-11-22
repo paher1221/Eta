@@ -86,6 +86,7 @@ import io.github.mangi.eta.ui.screens.characters.CharacterEditorScreen
 import io.github.mangi.eta.ui.screens.characters.CharacterLibraryScreen
 import io.github.mangi.eta.ui.screens.characters.CharacterMemoryScreen
 import io.github.mangi.eta.ui.screens.characters.CharacterPersonaScreen
+import io.github.mangi.eta.ui.screens.characters.CharacterSystemPromptScreen
 import io.github.mangi.eta.ui.screens.home.AgentHomeScreen
 import io.github.mangi.eta.ui.screens.mcp.McpServerDetailScreen
 import io.github.mangi.eta.ui.screens.mcp.McpServersScreen
@@ -550,6 +551,11 @@ fun AgentAppRoot(
                         }
                         CharacterPersonaScreen(characterStore) {
                             if (navigator.current() == AppRoute.CharacterPersona) popRoute()
+                        }
+                    }
+                    entry<AppRoute.CharacterSystemPrompt>(swipeDismiss = activeSwipeDismiss) {
+                        CharacterSystemPromptScreen {
+                            if (navigator.current() == AppRoute.CharacterSystemPrompt) popRoute()
                         }
                     }
                     entry<AppRoute.CharacterMemory>(swipeDismiss = activeSwipeDismiss) { route ->

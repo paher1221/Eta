@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,7 +63,6 @@ import io.github.mangi.eta.ui.components.MiuixScaffoldPage
 import io.github.mangi.eta.ui.components.StatusError
 import io.github.mangi.eta.ui.components.StatusSuccess
 import io.github.mangi.eta.ui.components.coui.CouiPageDefaults
-import io.github.mangi.eta.ui.components.coui.CouiPreferenceGroup
 import io.github.mangi.eta.ui.components.currentGlassOverlayBackdrop
 import io.github.mangi.eta.ui.components.coui.CouiButton
 import io.github.mangi.eta.ui.components.coui.CouiButtonRole
@@ -75,8 +73,6 @@ import io.github.mangi.eta.ui.components.coui.CouiScaffold
 import io.github.mangi.eta.ui.components.coui.CouiScaffoldPage
 import io.github.mangi.eta.ui.components.coui.CouiSegmentedTabs
 import io.github.mangi.eta.ui.components.coui.CouiSwitchPreference
-import io.github.mangi.eta.ui.components.coui.CouiTextField
-import io.github.mangi.eta.ui.components.rememberDraftTextFieldState
 import io.github.mangi.eta.ui.layout.horizontalCutoutPadding
 import io.github.mangi.eta.ui.navigation.NewProviderType
 import io.github.mangi.eta.ui.components.coui.CouiCardDivider as CouiDivider
@@ -90,10 +86,8 @@ import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
-import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.glass.GlassDialog
@@ -578,36 +572,7 @@ private fun ProviderConfigTab(
                     )
                 }
             }
-            if (uiStyle == AppearanceUiStyle.COUI) {
-                CouiPreferenceGroup(title = stringResource(R.string.ui_system_prompt_word_193981)) {
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = CouiPageDefaults.rowPadding, vertical = 12.dp),
-                        ) {
-                            CouiTextField(
-                                state = rememberDraftTextFieldState(draft.systemPrompt) { onDraftChange(draft.copy(systemPrompt = it)) },
-                                placeholder = stringResource(R.string.ui_leave_blank_to_use_the_default_mobile_agent_prompt_w_21e7c8),
-                                singleLine = false,
-                                minLines = 4,
-                            )
-                        }
-                    }
-                }
-            } else {
-                SmallTitle(text = stringResource(R.string.ui_system_prompt_word_193981))
-                TextField(
-                    state = rememberDraftTextFieldState(draft.systemPrompt) { onDraftChange(draft.copy(systemPrompt = it)) },
-                    lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 4),
-                    label = stringResource(R.string.ui_leave_blank_to_use_the_default_mobile_agent_prompt_w_21e7c8),
-                    useLabelAsPlaceholder = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp),
-                )
-            }
+            // 系统提示词已移至「角色 → 系统提示词」全局设置，此处不再提供服务商级编辑入口。
         }
 
         item(key = "actions") {

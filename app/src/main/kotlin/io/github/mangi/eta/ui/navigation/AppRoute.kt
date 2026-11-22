@@ -61,6 +61,9 @@ sealed interface AppRoute : NavKey {
     data object CharacterPersona : AppRoute
 
     @Serializable
+    data object CharacterSystemPrompt : AppRoute
+
+    @Serializable
     data class CharacterMemory(val characterId: String) : AppRoute
 
     @Serializable

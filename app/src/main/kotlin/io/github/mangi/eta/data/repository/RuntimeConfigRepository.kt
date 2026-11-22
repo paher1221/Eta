@@ -229,7 +229,9 @@ internal object RuntimeConfigRepository {
         json.encodeToString(if (config.authMode == ProviderAuthModes.API_KEY) config else config.copy(apiKey = ""))
 
     fun buildRuntimeConfig(provider: ProviderSetting, model: Model): AgentModelClient.ModelConfig {
-        val systemPrompt = provider.systemPrompt.orEmpty().trim()
+        // 全局系统提示词优先；留空时回退服务商级配置，保持既有行为。
+        val globalPrompt = Prefs.getString(Prefs.Keys.AGENT_GLOBAL_SYSTEM_PROMPT).trim()
+        val systemPrompt = globalPrompt.ifBlank { provider.systemPrompt.orEmpty().trim() }
         val sourceType = ProviderSourceRegistry.resolve(provider)
         val profile = ProviderConnectionProfile.forAuthMode(provider.authMode)
         val endpointMode = profile?.endpointMode ?: provider.endpointMode()

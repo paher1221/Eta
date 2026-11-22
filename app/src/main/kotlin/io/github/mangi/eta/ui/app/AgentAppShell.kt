@@ -605,6 +605,7 @@ private fun titleForRoute(route: AppRoute?): String = when (route) {
     is AppRoute.CharacterDetail -> stringResource(R.string.ui_misc_route_character_detail)
     is AppRoute.CharacterEditor -> stringResource(R.string.ui_misc_route_character_editor)
     is AppRoute.CharacterPersona -> stringResource(R.string.ui_misc_route_character_persona)
+    is AppRoute.CharacterSystemPrompt -> stringResource(R.string.character_system_prompt_title)
     is AppRoute.CharacterMemory -> stringResource(R.string.ui_misc_route_character_memory)
     is AppRoute.Permissions -> stringResource(R.string.route_permissions)
     is AppRoute.Settings -> stringResource(R.string.route_settings)

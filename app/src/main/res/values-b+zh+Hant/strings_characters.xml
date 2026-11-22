@@ -183,4 +183,9 @@
   <string name="character_backup_invalid_rewrite_target">備份中的重新產生目標無效</string>
 
   <string name="character_memory_invalid_id">角色記憶識別無效</string>
+  <string name="character_system_prompt_title">系統提示詞</string>
+  <string name="character_system_prompt_entry_summary">對所有模型和對話生效的全局指令</string>
+  <string name="character_system_prompt_hint">在這裡設置全局系統提示詞，換任何模型都會生效；留空則使用各服務商自己的提示詞。使用角色卡時，會改用角色卡的提示詞。</string>
+  <string name="character_system_prompt_content_label">系統提示詞</string>
+  <string name="character_system_prompt_save">保存提示詞</string>
 </resources>

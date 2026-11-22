@@ -33,6 +33,7 @@ internal object Prefs {
         const val AGENT_SUBAGENT_ENABLED = "agent_subagent_enabled"
         const val AGENT_KEEP_SCREEN_ON_ENABLED = "agent_keep_screen_on_enabled"
         const val AGENT_RUNTIME_CONFIG_JSON = "agent_runtime_config_json"
+        const val AGENT_GLOBAL_SYSTEM_PROMPT = "agent_global_system_prompt"
         const val AGENT_DISABLED_TOOLS_JSON = "agent_disabled_tools_json"
 
         /** 全部布尔开关及其默认值。 */

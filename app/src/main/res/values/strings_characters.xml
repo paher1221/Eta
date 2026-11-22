@@ -187,7 +187,7 @@
   <string name="character_memory_invalid_id">Invalid character memory ID</string>
   <string name="character_system_prompt_title">System prompt</string>
   <string name="character_system_prompt_entry_summary">Global instructions applied to every model and conversation</string>
-  <string name="character_system_prompt_hint">Set the global system prompt here. It applies to all models; leave blank to use each provider's own prompt. When using a character card, its prompt is used instead.</string>
+  <string name="character_system_prompt_hint">Set the global system prompt here. It applies to all models; leave blank to use each provider\'s own prompt. When using a character card, its prompt is used instead.</string>
   <string name="character_system_prompt_content_label">System prompt</string>
   <string name="character_system_prompt_save">Save prompt</string>
 </resources>
